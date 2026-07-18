@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+coverage/
+.env
+.env.local
+.env.production
+data/
+backups/
+*.log
+.DS_Store
+*.tsbuildinfo
+config/organization.json

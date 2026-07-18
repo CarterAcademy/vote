@@ -1,0 +1,443 @@
+.page {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+}
+
+.back {
+  margin-bottom: 14px;
+}
+
+.header {
+  display: grid;
+  align-items: start;
+  margin-bottom: 22px;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.header h1,
+.header p {
+  margin: 0;
+}
+
+.candidate {
+  color: var(--app-text-muted);
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  margin-top: 7px;
+  gap: 10px;
+}
+
+.titleRow h1 {
+  font-size: clamp(25px, 3.2vw, 34px);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.meta {
+  display: flex;
+  margin-top: 12px;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notice {
+  margin-bottom: 16px;
+}
+
+.syncBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  gap: 12px;
+}
+
+.syncStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tabs {
+  margin-bottom: 16px;
+}
+
+.overviewGrid {
+  display: grid;
+  align-items: start;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.8fr);
+}
+
+.panel {
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  gap: 14px;
+}
+
+.panelHeader h2,
+.panelHeader p {
+  margin: 0;
+}
+
+.panelHeader h2 {
+  font-size: 17px;
+}
+
+.panelHeader p {
+  margin-top: 4px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.distribution {
+  display: grid;
+  padding: 4px 20px 20px;
+  gap: 14px;
+}
+
+.distributionBar {
+  display: flex;
+  width: 100%;
+  height: 11px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #e9eeec;
+}
+
+.approveSegment {
+  background: #2f7d59;
+}
+
+.rejectSegment {
+  background: #bb5149;
+}
+
+.abstainSegment {
+  background: #b37a2b;
+}
+
+.choiceGrid {
+  display: grid;
+  gap: 1px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--app-border);
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.choiceMetric {
+  display: grid;
+  min-width: 0;
+  padding: 14px;
+  background: var(--app-surface-muted);
+  gap: 5px;
+}
+
+.choiceName {
+  display: inline-flex;
+  align-items: center;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  gap: 5px;
+}
+
+.choiceCount {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 690;
+  line-height: 1.1;
+}
+
+.choicePercent {
+  color: var(--app-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.turnoutPanel {
+  display: grid;
+  padding: 20px;
+  gap: 15px;
+}
+
+.turnoutLabel {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.turnoutNumber {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.turnoutNumber strong {
+  font-size: 34px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+
+.turnoutNumber span {
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.turnoutMeta {
+  display: grid;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  gap: 7px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.turnoutMeta strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--app-text);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.missingPanel {
+  margin-top: 16px;
+}
+
+.missingList {
+  display: grid;
+  padding: 0 20px 16px;
+  gap: 2px;
+}
+
+.missingPerson {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--app-border);
+  gap: 12px;
+}
+
+.missingPerson:last-child {
+  border-bottom: 0;
+}
+
+.personName {
+  font-weight: 620;
+}
+
+.department {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.completeState {
+  display: flex;
+  align-items: center;
+  padding: 8px 20px 22px;
+  color: var(--app-success);
+  font-size: 13px;
+  gap: 7px;
+}
+
+.tablePanel {
+  overflow: hidden;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: 11px 16px;
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.table td {
+  padding: 14px 16px;
+  border-top: 1px solid var(--app-border);
+  color: #30413b;
+  font-size: 13px;
+  vertical-align: top;
+}
+
+.opinion {
+  max-width: 420px;
+  line-height: 1.62;
+  white-space: pre-wrap;
+}
+
+.muted {
+  color: var(--app-text-muted);
+}
+
+.auditList {
+  display: grid;
+  padding: 4px 20px 18px;
+}
+
+.auditItem {
+  display: grid;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--app-border);
+  gap: 5px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.auditItem:last-child {
+  border-bottom: 0;
+}
+
+.auditTitle {
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.auditMeta,
+.auditDetail {
+  color: var(--app-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.auditTime {
+  color: var(--app-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.emptyInline {
+  padding: 32px 20px;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.dialogText {
+  margin: 0;
+  color: var(--app-text-muted);
+  line-height: 1.7;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+@media (max-width: 900px) {
+  .header {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+
+  .overviewGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .titleRow {
+    align-items: flex-start;
+    flex-direction: column-reverse;
+  }
+
+  .meta {
+    display: grid;
+    gap: 7px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .actions > button,
+  .actions > a {
+    width: 100%;
+  }
+
+  .syncBar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .choiceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .choiceMetric {
+    grid-template-columns: 1fr auto;
+  }
+
+  .choicePercent {
+    grid-column: 1 / -1;
+  }
+
+  .panelHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .panelHeader > button {
+    width: 100%;
+  }
+
+  .auditItem {
+    grid-template-columns: 1fr;
+  }
+
+  .dialogActions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+}
+

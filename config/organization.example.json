@@ -1,0 +1,42 @@
+{
+  "hr": [
+    {
+      "dingtalkUserId": "replace-with-hr-dingtalk-user-id",
+      "name": "HR 管理员",
+      "department": "人力资源部"
+    }
+  ],
+  "committees": [
+    {
+      "code": "ACADEMIC",
+      "name": "学术委员会",
+      "members": [
+        { "dingtalkUserId": "replace-academic-01", "name": "委员 1", "department": null, "position": "主任委员" },
+        { "dingtalkUserId": "replace-academic-02", "name": "委员 2", "department": null, "position": "副主任委员" },
+        { "dingtalkUserId": "replace-academic-03", "name": "委员 3", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-academic-04", "name": "委员 4", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-academic-05", "name": "委员 5", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-academic-06", "name": "委员 6", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-academic-07", "name": "委员 7", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-academic-08", "name": "委员 8", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-academic-09", "name": "委员 9", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-academic-10", "name": "委员 10", "department": null, "position": "委员" }
+      ]
+    },
+    {
+      "code": "TECHNICAL",
+      "name": "技术委员会",
+      "members": [
+        { "dingtalkUserId": "replace-technical-01", "name": "委员 1", "department": null, "position": "主任委员" },
+        { "dingtalkUserId": "replace-technical-02", "name": "委员 2", "department": null, "position": "副主任委员" },
+        { "dingtalkUserId": "replace-technical-03", "name": "委员 3", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-technical-04", "name": "委员 4", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-technical-05", "name": "委员 5", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-technical-06", "name": "委员 6", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-technical-07", "name": "委员 7", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-technical-08", "name": "委员 8", "department": null, "position": "委员" },
+        { "dingtalkUserId": "replace-technical-09", "name": "委员 9", "department": null, "position": "委员" }
+      ]
+    }
+  ]
+}

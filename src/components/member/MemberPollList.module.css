@@ -1,0 +1,163 @@
+.page {
+  width: min(900px, 100%);
+  margin: 0 auto;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 18px;
+}
+
+.pageHeader h1,
+.pageHeader p {
+  margin: 0;
+}
+
+.pageHeader h1 {
+  font-size: clamp(25px, 3vw, 32px);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.pageHeader p {
+  margin-top: 7px;
+  color: var(--app-text-muted);
+  line-height: 1.6;
+}
+
+.summary {
+  margin-bottom: 18px;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+.poll {
+  display: grid;
+  min-width: 0;
+  min-height: 128px;
+  align-items: center;
+  padding: 20px 22px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  transition: border-color 130ms ease, box-shadow 130ms ease;
+}
+
+.poll:hover {
+  border-color: var(--app-border-strong);
+  box-shadow: 0 8px 24px rgba(28, 61, 50, 0.055);
+}
+
+.pollMain {
+  min-width: 0;
+}
+
+.pollTop {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 9px;
+}
+
+.pollTitle {
+  margin: 0;
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate {
+  margin: 0 0 11px;
+  color: #273a33;
+  font-size: 14px;
+}
+
+.candidate strong {
+  font-weight: 650;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  gap: 16px;
+  line-height: 1.5;
+  flex-wrap: wrap;
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.action {
+  display: grid;
+  min-width: 116px;
+  justify-items: end;
+  gap: 9px;
+}
+
+.submitted {
+  display: inline-flex;
+  align-items: center;
+  color: var(--app-success);
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.privacy {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 20px;
+  padding: 14px 16px;
+  border-radius: var(--app-radius);
+  background: #edf4f1;
+  color: #375149;
+  font-size: 13px;
+  gap: 9px;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .pageHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .poll {
+    align-items: stretch;
+    padding: 17px;
+    gap: 16px;
+    grid-template-columns: 1fr;
+  }
+
+  .pollTitle {
+    white-space: normal;
+  }
+
+  .action {
+    width: 100%;
+    min-width: 0;
+    justify-items: stretch;
+  }
+
+  .action > a {
+    width: 100%;
+  }
+}
+

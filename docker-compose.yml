@@ -1,0 +1,108 @@
+name: committee-vote
+
+services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-committee_vote}
+      POSTGRES_USER: ${POSTGRES_USER:-committee_vote}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - vote_db:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - backend
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      DINGTALK_MOCK_ENABLED: "false"
+      DINGTALK_CORP_ID: ${DINGTALK_CORP_ID:?DINGTALK_CORP_ID is required}
+      DINGTALK_CLIENT_ID: ${DINGTALK_CLIENT_ID:?DINGTALK_CLIENT_ID is required}
+      DINGTALK_CLIENT_SECRET: ${DINGTALK_CLIENT_SECRET:?DINGTALK_CLIENT_SECRET is required}
+      DINGTALK_ROBOT_CODE: ${DINGTALK_ROBOT_CODE:-}
+      DINGTALK_APP_BASE_URL: ${DINGTALK_APP_BASE_URL:?DINGTALK_APP_BASE_URL is required}
+      MAINTENANCE_SECRET: ${MAINTENANCE_SECRET:?MAINTENANCE_SECRET is required}
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    networks:
+      - frontend
+      - backend
+
+  migrate:
+    build:
+      context: .
+      target: builder
+    profiles: ["tools"]
+    command: ["npm", "run", "db:migrate"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      DINGTALK_MOCK_ENABLED: "false"
+      MAINTENANCE_SECRET: ${MAINTENANCE_SECRET:?MAINTENANCE_SECRET is required}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+
+  backup:
+    build:
+      context: .
+      target: db-ops
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-365}
+    volumes:
+      - vote_backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+
+volumes:
+  vote_db:
+  vote_backups:
+
+networks:
+  frontend:
+  backend:
+    internal: true

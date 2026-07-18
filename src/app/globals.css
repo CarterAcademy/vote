@@ -1,0 +1,80 @@
+:root {
+  color-scheme: light;
+  --app-accent: #00695c;
+  --app-accent-strong: #005348;
+  --app-accent-soft: #e3f3ef;
+  --app-accent-pale: #f1f8f6;
+  --app-canvas: #f4f6f5;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f8faf9;
+  --app-border: #d9dfdc;
+  --app-border-strong: #b7c2bd;
+  --app-text: #1d2723;
+  --app-text-muted: #52615b;
+  --app-danger: #b42318;
+  --app-warning: #8a4b08;
+  --app-success: #176b45;
+  --app-radius: 10px;
+  --app-shadow: 0 12px 34px rgba(24, 54, 43, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--app-canvas);
+  color: var(--app-text);
+  font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: #b9dfd7;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+}

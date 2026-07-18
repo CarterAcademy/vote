@@ -1,0 +1,207 @@
+.shell {
+  min-height: 100dvh;
+  background: var(--app-canvas);
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 64px;
+  border-bottom: 1px solid var(--app-border);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+}
+
+.headerInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(1440px, 100%);
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 11px;
+  text-decoration: none;
+}
+
+.brandMark {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--app-accent);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.brandText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.brandTitle {
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brandContext {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.userName {
+  max-width: 140px;
+  overflow: hidden;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  display: grid;
+  width: min(1440px, 100%);
+  min-height: calc(100dvh - 64px);
+  margin: 0 auto;
+  grid-template-columns: 224px minmax(0, 1fr);
+}
+
+.sidebar {
+  padding: 22px 16px;
+  border-right: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.nav {
+  display: grid;
+  gap: 5px;
+}
+
+.navLink {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: var(--app-radius);
+  color: #3d4d47;
+  font-size: 14px;
+  font-weight: 560;
+  text-decoration: none;
+  transition: background-color 130ms ease, color 130ms ease;
+}
+
+.navLink:hover {
+  background: #f1f5f3;
+  color: var(--app-text);
+}
+
+.navLink:active {
+  transform: translateY(1px);
+}
+
+.navLinkActive {
+  background: var(--app-accent-soft);
+  color: var(--app-accent-strong);
+  font-weight: 650;
+}
+
+.content {
+  min-width: 0;
+  padding: 34px clamp(24px, 4vw, 56px) 64px;
+}
+
+.mobileNav {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .header {
+    height: 58px;
+  }
+
+  .headerInner {
+    padding: 0 16px;
+  }
+
+  .brandMark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .brandContext,
+  .userName,
+  .logoutLabel {
+    display: none;
+  }
+
+  .body {
+    min-height: calc(100dvh - 58px);
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .content {
+    padding: 24px 16px 88px;
+  }
+
+  .mobileNav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    display: grid;
+    padding: 7px 12px calc(7px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--app-border);
+    background: rgba(255, 255, 255, 0.97);
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+
+  .mobileLink {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    color: var(--app-text-muted);
+    flex-direction: column;
+    font-size: 11px;
+    gap: 3px;
+    text-decoration: none;
+  }
+
+  .mobileLinkActive {
+    color: var(--app-accent-strong);
+    background: var(--app-accent-pale);
+    font-weight: 650;
+  }
+}
+
