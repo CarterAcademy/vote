@@ -1,0 +1,1315 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="两委会人选评审投票系统的钉钉公开应用调研摘要">
+  <title>钉钉投票方案调研摘要</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3f6f9;
+      --paper: #fbfcfd;
+      --paper-strong: #ffffff;
+      --ink: #162033;
+      --ink-soft: #526074;
+      --line: #d9e1ea;
+      --line-strong: #bac7d5;
+      --accent: #1f5fa8;
+      --accent-deep: #174779;
+      --accent-soft: #e8f1fb;
+      --muted: #edf1f5;
+      --muted-deep: #7b8797;
+      --shadow: 0 18px 50px rgba(43, 66, 91, 0.10);
+      --radius: 16px;
+      --radius-small: 10px;
+      --content: 1180px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: "SF Pro Display", "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: var(--accent-deep);
+      text-underline-offset: 3px;
+    }
+
+    a:hover {
+      color: var(--accent);
+    }
+
+    button,
+    a.button {
+      font: inherit;
+    }
+
+    .skip-link {
+      position: fixed;
+      left: 16px;
+      top: 12px;
+      z-index: 20;
+      transform: translateY(-160%);
+      padding: 9px 13px;
+      border-radius: var(--radius-small);
+      background: var(--ink);
+      color: var(--paper-strong);
+      text-decoration: none;
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid rgba(186, 199, 213, 0.78);
+      background: rgba(243, 246, 249, 0.94);
+      backdrop-filter: blur(14px);
+    }
+
+    .toolbar-inner {
+      width: min(calc(100% - 40px), var(--content));
+      min-height: 64px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+      font-weight: 720;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--accent);
+      color: white;
+      font-size: 14px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .button {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-small);
+      background: var(--paper-strong);
+      color: var(--ink);
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+    }
+
+    .button:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    .button:focus-visible,
+    a:focus-visible {
+      outline: 3px solid rgba(31, 95, 168, 0.32);
+      outline-offset: 3px;
+    }
+
+    main {
+      width: min(calc(100% - 40px), var(--content));
+      margin: 0 auto;
+      padding: 54px 0 76px;
+    }
+
+    .hero {
+      min-height: min(650px, calc(100dvh - 118px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.42fr) minmax(300px, 0.58fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .hero-main,
+    .verdict-panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main {
+      padding: clamp(34px, 6vw, 72px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      right: -104px;
+      bottom: -126px;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      border: 70px solid var(--accent-soft);
+      pointer-events: none;
+    }
+
+    .hero-main > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .kicker {
+      margin: 0 0 24px;
+      color: var(--accent-deep);
+      font-size: 13px;
+      font-weight: 760;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 780px;
+      margin-bottom: 24px;
+      font-size: clamp(42px, 6.2vw, 76px);
+      line-height: 1.04;
+      letter-spacing: -0.055em;
+      text-wrap: balance;
+    }
+
+    .hero-summary {
+      max-width: 670px;
+      margin-bottom: 34px;
+      color: var(--ink-soft);
+      font-size: clamp(17px, 2vw, 21px);
+      line-height: 1.55;
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .meta-item {
+      padding-top: 15px;
+      border-top: 1px solid var(--line);
+    }
+
+    .meta-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted-deep);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .meta-value {
+      display: block;
+      font-weight: 720;
+      letter-spacing: -0.01em;
+    }
+
+    .verdict-panel {
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: var(--ink);
+      color: #f4f7fa;
+    }
+
+    .verdict-label {
+      color: #a9c8e8;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .verdict-number {
+      margin: 18px 0 12px;
+      color: #a9c8e8;
+      font-size: clamp(88px, 14vw, 160px);
+      font-weight: 780;
+      line-height: 0.9;
+      letter-spacing: -0.08em;
+    }
+
+    .verdict-panel h2 {
+      margin-bottom: 14px;
+      font-size: 28px;
+      line-height: 1.18;
+      letter-spacing: -0.035em;
+    }
+
+    .verdict-panel p {
+      margin-bottom: 0;
+      color: #c7d1dc;
+    }
+
+    .verdict-note {
+      margin-top: 30px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.16);
+      color: #dfe7ef;
+      font-size: 14px;
+    }
+
+    section {
+      margin-top: 92px;
+      scroll-margin-top: 84px;
+    }
+
+    .hero {
+      margin-top: 0;
+    }
+
+    .section-heading {
+      max-width: 760px;
+      margin-bottom: 30px;
+    }
+
+    .section-heading h2 {
+      margin-bottom: 12px;
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.12;
+      letter-spacing: -0.045em;
+    }
+
+    .section-heading p {
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: 17px;
+    }
+
+    .decision-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+      gap: 20px;
+    }
+
+    .candidate-primary,
+    .candidate-secondary {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper-strong);
+    }
+
+    .candidate-primary {
+      min-height: 420px;
+      padding: clamp(30px, 5vw, 54px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 190px;
+      gap: 30px;
+      align-items: end;
+    }
+
+    .candidate-primary h3 {
+      margin-bottom: 14px;
+      font-size: clamp(34px, 5vw, 56px);
+      line-height: 1.02;
+      letter-spacing: -0.05em;
+    }
+
+    .candidate-primary p {
+      max-width: 620px;
+      color: var(--ink-soft);
+    }
+
+    .evidence-list {
+      margin: 28px 0 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      list-style: none;
+    }
+
+    .evidence-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    .evidence-list li::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      margin-top: 7px;
+      flex: 0 0 auto;
+      border-radius: 3px;
+      background: var(--accent);
+    }
+
+    .price-block {
+      align-self: stretch;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      border-radius: var(--radius-small);
+      background: var(--accent-soft);
+    }
+
+    .price-label {
+      color: var(--accent-deep);
+      font-size: 12px;
+      font-weight: 730;
+    }
+
+    .price {
+      margin: 4px 0 2px;
+      color: var(--accent-deep);
+      font-size: 32px;
+      font-weight: 790;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+    }
+
+    .price-note {
+      color: var(--ink-soft);
+      font-size: 12px;
+    }
+
+    .candidate-stack {
+      display: grid;
+      gap: 20px;
+    }
+
+    .candidate-secondary {
+      padding: 28px;
+    }
+
+    .candidate-secondary h3 {
+      margin-bottom: 8px;
+      font-size: 23px;
+      letter-spacing: -0.03em;
+    }
+
+    .candidate-secondary p {
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .candidate-secondary strong,
+    .poc strong,
+    .path-item strong {
+      color: var(--accent-deep);
+      font-weight: 800;
+    }
+
+    .candidate-secondary.lowcode {
+      border-color: #a9c4e1;
+      background: #f4f8fc;
+    }
+
+    .candidate-secondary.strict {
+      background: var(--muted);
+    }
+
+    .status-line {
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--muted-deep);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .rank {
+      color: var(--accent-deep);
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .legend {
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 74px;
+      padding: 5px 9px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 740;
+      white-space: nowrap;
+    }
+
+    .status.confirmed {
+      background: var(--accent-soft);
+      color: var(--accent-deep);
+    }
+
+    .status.verify {
+      border: 1px dashed var(--line-strong);
+      background: var(--paper-strong);
+      color: #5a6777;
+    }
+
+    .status.missing {
+      background: var(--muted);
+      color: #485568;
+    }
+
+    .table-shell {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper-strong);
+      box-shadow: 0 12px 34px rgba(43, 66, 91, 0.07);
+    }
+
+    table {
+      width: 100%;
+      min-width: 1040px;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    caption {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    th,
+    td {
+      padding: 17px 16px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      background: #f0f4f8;
+      color: #3f4d60;
+      font-size: 12px;
+      font-weight: 760;
+      line-height: 1.35;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    .solution-name {
+      min-width: 150px;
+      font-weight: 760;
+    }
+
+    .solution-name small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted-deep);
+      font-weight: 500;
+    }
+
+    .cell-note {
+      display: block;
+      max-width: 170px;
+      margin-top: 5px;
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .risk-layout {
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .risk-summary {
+      padding: 36px;
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: white;
+    }
+
+    .risk-summary strong {
+      display: block;
+      margin-bottom: 18px;
+      font-size: clamp(48px, 8vw, 88px);
+      line-height: 0.95;
+      letter-spacing: -0.07em;
+    }
+
+    .risk-summary h3 {
+      margin-bottom: 10px;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+
+    .risk-summary p {
+      margin-bottom: 0;
+      color: #e3eef9;
+    }
+
+    .risk-items {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .risk-item {
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper-strong);
+    }
+
+    .risk-item:nth-child(3) {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .risk-code {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--accent-deep);
+      font-size: 13px;
+      font-weight: 780;
+    }
+
+    .risk-item h3 {
+      margin-bottom: 8px;
+      font-size: 21px;
+      letter-spacing: -0.025em;
+    }
+
+    .risk-item p {
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .poc {
+      padding: clamp(30px, 5vw, 56px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .poc-list {
+      margin: 32px 0 0;
+      padding: 0;
+      display: grid;
+      gap: 0;
+      list-style: none;
+      counter-reset: poc;
+    }
+
+    .poc-list li {
+      counter-increment: poc;
+      display: grid;
+      grid-template-columns: 56px minmax(0, 1fr) minmax(180px, 0.35fr);
+      gap: 20px;
+      align-items: start;
+      padding: 22px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .poc-list li:last-child {
+      border-bottom: 0;
+    }
+
+    .poc-list li::before {
+      content: counter(poc, decimal-leading-zero);
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: var(--accent-soft);
+      color: var(--accent-deep);
+      font-weight: 800;
+    }
+
+    .poc-list h3 {
+      margin-bottom: 5px;
+      font-size: 19px;
+    }
+
+    .poc-list p {
+      margin-bottom: 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .pass-rule {
+      padding: 10px 12px;
+      border-left: 3px solid var(--accent);
+      background: #f5f8fb;
+      color: #39475a;
+      font-size: 13px;
+    }
+
+    .decision-path {
+      display: grid;
+      grid-template-columns: 1.12fr 1fr 0.88fr;
+      gap: 16px;
+    }
+
+    .path-item {
+      min-height: 270px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper-strong);
+    }
+
+    .path-item.recommended {
+      border-color: #8bb0d7;
+      background: var(--accent-soft);
+    }
+
+    .path-item h3 {
+      margin-bottom: 10px;
+      font-size: 24px;
+      letter-spacing: -0.035em;
+    }
+
+    .path-item p {
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .path-outcome {
+      padding-top: 16px;
+      border-top: 1px solid var(--line-strong);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 730;
+    }
+
+    .sources {
+      padding: 36px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #eef3f8;
+    }
+
+    .sources h2 {
+      margin-bottom: 20px;
+      font-size: 28px;
+      letter-spacing: -0.035em;
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 24px;
+    }
+
+    .source-grid a {
+      display: block;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+      font-weight: 650;
+      text-decoration: none;
+    }
+
+    .source-grid a:hover {
+      text-decoration: underline;
+    }
+
+    .footer-note {
+      margin: 28px 0 0;
+      color: var(--muted-deep);
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .decision-grid,
+      .risk-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        min-height: auto;
+      }
+
+      .verdict-panel {
+        min-height: 360px;
+      }
+
+      .candidate-primary {
+        grid-template-columns: 1fr;
+      }
+
+      .price-block {
+        min-height: 150px;
+      }
+
+      .decision-path {
+        grid-template-columns: 1fr;
+      }
+
+      .path-item {
+        min-height: auto;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .toolbar-inner,
+      main {
+        width: min(calc(100% - 28px), var(--content));
+      }
+
+      .toolbar-inner {
+        min-height: 58px;
+      }
+
+      .brand span:last-child,
+      .toolbar-actions .jump-button {
+        display: none;
+      }
+
+      main {
+        padding-top: 24px;
+      }
+
+      .hero-main,
+      .verdict-panel,
+      .poc,
+      .sources {
+        padding: 26px;
+      }
+
+      h1 {
+        font-size: clamp(40px, 13vw, 58px);
+      }
+
+      .hero-meta,
+      .evidence-list,
+      .risk-items,
+      .source-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .risk-item:nth-child(3) {
+        grid-column: auto;
+        grid-template-columns: 1fr;
+      }
+
+      .poc-list li {
+        grid-template-columns: 46px minmax(0, 1fr);
+        gap: 14px;
+      }
+
+      .pass-rule {
+        grid-column: 2;
+      }
+
+      section {
+        margin-top: 68px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 12mm;
+      }
+
+      body {
+        background: white;
+        font-size: 10pt;
+      }
+
+      .toolbar,
+      .skip-link {
+        display: none !important;
+      }
+
+      main {
+        width: 100%;
+        padding: 0;
+      }
+
+      .hero {
+        min-height: auto;
+      }
+
+      .hero-main,
+      .verdict-panel,
+      .candidate-primary,
+      .candidate-secondary,
+      .risk-summary,
+      .risk-item,
+      .poc,
+      .path-item,
+      .sources,
+      .table-shell {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+
+      section {
+        margin-top: 16mm;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .table-shell {
+        overflow: visible;
+      }
+
+      table {
+        min-width: 0;
+        font-size: 8pt;
+      }
+
+      th,
+      td {
+        padding: 7px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+
+  <header class="toolbar" aria-label="报告工具栏">
+    <div class="toolbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">两委</span>
+        <span>人选评审投票系统调研</span>
+      </div>
+      <div class="toolbar-actions">
+        <a class="button jump-button" href="#matrix">查看矩阵</a>
+        <button class="button" type="button" onclick="window.print()">打印或存为 PDF</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="report-title">
+      <div class="hero-main">
+        <div>
+          <p class="kicker">DingTalk solution review</p>
+          <h1 id="report-title">钉钉投票方案调研摘要</h1>
+          <p class="hero-summary">评估官方能力、第三方应用与低代码平台，判断其能否满足两委会记名评审、权限隔离、改票留痕、催投和长期保存要求。</p>
+        </div>
+        <div class="hero-meta" aria-label="调研基本信息">
+          <div class="meta-item">
+            <span class="meta-label">调研日期</span>
+            <span class="meta-value">2026-07-18</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">评估范围</span>
+            <span class="meta-value">官方、市场应用、低代码</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">核心原则</span>
+            <span class="meta-value">未公开证明即待验证</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="verdict-panel" aria-label="核心结论">
+        <div>
+          <span class="verdict-label">核心结论</span>
+          <div class="verdict-number" aria-hidden="true">1</div>
+          <h2>建议采用自研 H5 + 后端</h2>
+          <p>现有公开应用没有被证实能够同时满足权限隔离、完整改票历史、精准私聊催投、服务端关闭和长期可恢复备份。自研方案能够把全部规则落实为可验收、可审计的系统能力。</p>
+        </div>
+        <div class="verdict-note">问卷星和宜搭保留为替代方案参考，不作为当前首选。若未来考虑采购，必须先通过五项 POC 门槛。</div>
+      </aside>
+    </section>
+
+    <section aria-labelledby="shortlist-title">
+      <div class="section-heading">
+        <h2 id="shortlist-title">三条可执行路径</h2>
+        <p>调研结果不是简单的买或不买。不同路径对应不同的审计强度、交付速度和运维责任。</p>
+      </div>
+
+      <div class="decision-grid">
+        <article class="candidate-primary">
+          <div>
+            <div class="status-line">
+              <span>建议决策</span>
+              <span class="rank">01</span>
+            </div>
+            <h3>自研 H5 + 后端</h3>
+            <p>直接按两委会评审规则建设，能够明确保证权限、服务器端截止、一人一票、追加式版本历史、私聊催投日志和每日可恢复备份，避免把关键审计要求建立在供应商未公开承诺的能力上。</p>
+            <ul class="evidence-list">
+              <li>钉钉身份登录与委员名单校验</li>
+              <li>仅 HR 查看记名明细</li>
+              <li>投票期间完全隐藏结果</li>
+              <li>截止前修改并保留完整版本</li>
+              <li>一键私聊未投委员并留痕</li>
+              <li>长期保存、每日备份和恢复验证</li>
+            </ul>
+          </div>
+          <div class="price-block" aria-label="推荐结论">
+            <span class="price-label">推荐结论</span>
+            <strong class="price">自研</strong>
+            <span class="price-note">以可控、可审计和严格满足业务规则为优先级</span>
+          </div>
+        </article>
+
+        <div class="candidate-stack">
+          <article class="candidate-secondary lowcode">
+            <div class="status-line">
+              <span>最接近成品的备选</span>
+              <span class="rank">02</span>
+            </div>
+            <h3>问卷星企业尊享版</h3>
+            <p><strong>公开年费 ¥12,000/年</strong>，钉钉渠道实际报价需另行确认。公开资料覆盖多数通用能力，但完整且不可覆盖的改票版本链、精准钉钉私聊催投等关键要求仍需 POC 和合同确认。</p>
+          </article>
+
+          <article class="candidate-secondary strict">
+            <div class="status-line">
+              <span>低代码备选</span>
+              <span class="rank">03</span>
+            </div>
+            <h3>宜搭专业版</h3>
+            <p>权限、修改记录、定时触发和通知能力较齐全，但仍需设计数据模型、规则和外部备份。它减少编码，不消除实施与验收工作。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="matrix" aria-labelledby="matrix-title">
+      <div class="section-heading">
+        <h2 id="matrix-title">能力适配矩阵</h2>
+        <p>“确认”表示公开资料已有直接证据。“待验证”表示可能支持，但必须通过试用或书面承诺确认。</p>
+      </div>
+
+      <div class="legend" aria-label="状态图例">
+        <span class="status confirmed">确认</span>
+        <span class="status verify">待验证</span>
+        <span class="status missing">不满足</span>
+      </div>
+
+      <div class="table-shell" role="region" aria-label="候选方案能力对比，可横向滚动" tabindex="0">
+        <table>
+          <caption>钉钉投票候选方案能力适配矩阵</caption>
+          <thead>
+            <tr>
+              <th scope="col">方案</th>
+              <th scope="col">钉钉实名与指定成员</th>
+              <th scope="col">仅 HR 看明细</th>
+              <th scope="col">投票期隐藏结果</th>
+              <th scope="col">截止前修改</th>
+              <th scope="col">完整改票历史</th>
+              <th scope="col">手动及自动关闭</th>
+              <th scope="col">未投私聊催促</th>
+              <th scope="col">长期保存及每日备份</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="solution-name">问卷星尊享版<small>第三方企业应用</small></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span><span class="cell-note">支持管理员和结果查看员角色</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status verify">待验证</span><span class="cell-note">未证明每次旧值均永久保留</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status verify">待验证</span><span class="cell-note">需确认是逐人私聊或工作通知</span></td>
+              <td><span class="status confirmed">确认</span><span class="cell-note">恢复指标仍需合同约定</span></td>
+            </tr>
+            <tr>
+              <td class="solution-name">钉钉智能填表<small>官方基础应用</small></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status missing">不满足</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status verify">待验证</span><span class="cell-note">已确认 DING 催填，未确认私聊形态</span></td>
+              <td><span class="status verify">待验证</span></td>
+            </tr>
+            <tr>
+              <td class="solution-name">番茄表单<small>第三方企业应用</small></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status missing">不满足</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status verify">待验证</span><span class="cell-note">相关公开说明多数较旧</span></td>
+            </tr>
+            <tr>
+              <td class="solution-name">钉钉 AI 表格<small>官方低代码底座</small></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status verify">待验证</span><span class="cell-note">需要高级行列权限</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status verify">待验证</span><span class="cell-note">需要单独设计追加式历史表</span></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status verify">待验证</span></td>
+            </tr>
+            <tr>
+              <td class="solution-name">宜搭专业版<small>官方低代码平台</small></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status verify">待验证</span><span class="cell-note">需要自建版本表并限制删除</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span><span class="cell-note">需配置循环通知和日志</span></td>
+              <td><span class="status verify">待验证</span><span class="cell-note">建议增加外部每日备份</span></td>
+            </tr>
+            <tr>
+              <td class="solution-name">钉钉群投票<small>官方群聊功能</small></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status missing">不满足</span></td>
+              <td><span class="status missing">不满足</span></td>
+              <td><span class="status missing">不满足</span></td>
+              <td><span class="status missing">不满足</span></td>
+              <td><span class="status verify">待验证</span></td>
+              <td><span class="status missing">不满足</span></td>
+              <td><span class="status missing">不满足</span></td>
+            </tr>
+            <tr>
+              <td class="solution-name">自研 H5 + 后端<small>现有实现</small></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+              <td><span class="status confirmed">确认</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-labelledby="risk-title">
+      <div class="section-heading">
+        <h2 id="risk-title">真正决定选型的三个风险</h2>
+        <p>普通投票、统计和导出并不难。差异集中在审计、关闭控制和消息触达。</p>
+      </div>
+
+      <div class="risk-layout">
+        <article class="risk-summary">
+          <strong>3</strong>
+          <h3>不可用宣传页代替验收</h3>
+          <p>所有关键风险都必须用真实委员账号、真实改票动作和真实导出文件验证。</p>
+        </article>
+
+        <div class="risk-items">
+          <article class="risk-item">
+            <span class="risk-code">审计风险</span>
+            <h3>改票是否覆盖旧值</h3>
+            <p>“允许修改”不等于“保留历史”。必须确认每一版选择、意见、操作人和时间都可追溯。</p>
+          </article>
+
+          <article class="risk-item">
+            <span class="risk-code">权限风险</span>
+            <h3>结果是否存在旁路</h3>
+            <p>除了页面按钮，还要检查分享链接、统计页、报表、API 和平台管理员权限。</p>
+          </article>
+
+          <article class="risk-item">
+            <div>
+              <span class="risk-code">执行风险</span>
+              <h3>关闭和催投是否可靠</h3>
+            </div>
+            <p>截止必须由服务端强制执行。催投需要精确计算未投名单，逐人发送，并留下成功、失败和重复操作记录。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="poc-title">
+      <div class="poc">
+        <div class="section-heading">
+          <h2 id="poc-title">供应商 POC 验收门槛</h2>
+          <p>自研 H5 为建议方案。问卷星企业尊享版公开价为 <strong>¥12,000/年</strong>，因此只有以下门槛全部通过，才值得进入正式报价和合同评审。</p>
+        </div>
+
+        <ol class="poc-list">
+          <li>
+            <div>
+              <h3>连续改票留痕</h3>
+              <p>同一委员依次提交“通过、不通过、通过”，每次同时修改意见。</p>
+            </div>
+            <div class="pass-rule">通过标准：HR 可导出三个完整版本，包含旧值、新值、人员和时间。</div>
+          </li>
+          <li>
+            <div>
+              <h3>投票期间结果隔离</h3>
+              <p>分别使用普通委员、非委员和管理员账号检查所有入口。</p>
+            </div>
+            <div class="pass-rule">通过标准：委员无法查看票数、比例、意见或他人身份。</div>
+          </li>
+          <li>
+            <div>
+              <h3>未投人员精准催促</h3>
+              <p>制造已投、未投和发送失败三种状态，再执行一键催投。</p>
+            </div>
+            <div class="pass-rule">通过标准：只通知未投委员，并保留发送结果和失败原因。</div>
+          </li>
+          <li>
+            <div>
+              <h3>手动和自动关闭</h3>
+              <p>在未投齐时手动关闭，再创建一场短截止时间的自动关闭测试。</p>
+            </div>
+            <div class="pass-rule">通过标准：关闭后任何客户端或接口都不能新增或修改投票。</div>
+          </li>
+          <li>
+            <div>
+              <h3>保存与恢复承诺</h3>
+              <p>核对合同中的保存期限、备份频率、恢复目标和退订后的数据处理。</p>
+            </div>
+            <div class="pass-rule">通过标准：书面确认每日备份、恢复能力和完整批量导出。</div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section aria-labelledby="decision-title">
+      <div class="section-heading">
+        <h2 id="decision-title">建议决策路径</h2>
+        <p>当前直接推进自研 H5；第三方应用和低代码平台仅作为条件明确的替代路径。</p>
+      </div>
+
+      <div class="decision-path">
+        <article class="path-item recommended">
+          <div>
+            <h3>推进自研 H5</h3>
+            <p>以现有需求说明书为验收基线，完成钉钉身份接入、投票闭环、审计历史、催投日志和备份恢复。</p>
+          </div>
+          <div class="path-outcome">建议：作为当前正式实施路径立项</div>
+        </article>
+
+        <article class="path-item">
+          <div>
+            <h3>保留问卷星 POC</h3>
+            <p>企业尊享版公开价为 <strong>¥12,000/年</strong>。仅在希望减少开发投入时启动，并要求五项门槛全部通过且关键能力写入合同。</p>
+          </div>
+          <div class="path-outcome">成本：公开价 ¥12,000/年；条件：关键能力全部得到证明</div>
+        </article>
+
+        <article class="path-item">
+          <div>
+            <h3>需要平台化管理时评估宜搭</h3>
+            <p>如果单位未来还有多类内部流程需要业务人员持续搭建，可单独评估宜搭专业版。</p>
+          </div>
+          <div class="path-outcome">条件：接受低代码实施、平台依赖和外部备份工作</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="sources" aria-labelledby="sources-title">
+      <h2 id="sources-title">主要证据来源</h2>
+      <div class="source-grid">
+        <a href="https://www.wjx.cn/dingtalk.aspx" target="_blank" rel="noreferrer">问卷星钉钉版功能说明</a>
+        <a href="https://www.wjx.cn/help/help.aspx?helpid=725" target="_blank" rel="noreferrer">问卷星钉钉企业内发放</a>
+        <a href="https://www.wjx.cn/help/help.aspx?helpid=187" target="_blank" rel="noreferrer">问卷星结果公开级别</a>
+        <a href="https://www.wjx.cn/help/help.aspx?helpid=470" target="_blank" rel="noreferrer">问卷星答卷修改</a>
+        <a href="https://www.wjx.cn/help/help.aspx?helpid=482" target="_blank" rel="noreferrer">问卷星管理权限</a>
+        <a href="https://www.wjx.cn/help/help.aspx?helpid=214" target="_blank" rel="noreferrer">问卷星数据保留政策</a>
+        <a href="https://www.wjx.cn/Help/Help.aspx?helpid=349" target="_blank" rel="noreferrer">问卷星每日备份说明</a>
+        <a href="https://www.wjx.cn/Help/Help.aspx?helpid=354" target="_blank" rel="noreferrer">问卷星版本价格说明</a>
+        <a href="https://page.dingtalk.com/wow/dingtalk/act/gwzhinengtiaobiao?wh_biz=tm" target="_blank" rel="noreferrer">钉钉智能填表官方页面</a>
+        <a href="https://docs.dingtalk.com/product/smart-table?from=dingtalk_official" target="_blank" rel="noreferrer">钉钉 AI 表格官方介绍</a>
+        <a href="https://docs.aliwork.com/docs/yida_support/wtwabe/ckyvwt/ulqab1" target="_blank" rel="noreferrer">宜搭权限设置</a>
+        <a href="https://docs.aliwork.com/docs/yida_support/_3/yovph5uaoyxb6f02/yl45mtqgbwewybhk/idpsmzygsdgk8tk3" target="_blank" rel="noreferrer">宜搭定时触发</a>
+        <a href="https://article.fanqier.cn/faq/ke-yi-dui-mei-you-tian-biao-de-yong-hu-jin-xing-cui-ban-me-" target="_blank" rel="noreferrer">番茄表单未填催办说明</a>
+        <a href="https://appcenter.dingtalk.com/" target="_blank" rel="noreferrer">钉钉应用中心</a>
+      </div>
+      <p class="footer-note">说明：本报告基于截至 2026-07-18 可访问的公开资料。公开资料没有直接证明的能力均标记为“待验证”，不作为采购承诺。</p>
+    </section>
+  </main>
+</body>
+</html>
