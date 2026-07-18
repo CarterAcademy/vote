@@ -177,24 +177,62 @@
   display: none;
 }
 
+.createDialog {
+  width: min(680px, calc(100vw - 32px));
+  max-width: min(680px, calc(100vw - 32px));
+  max-height: min(760px, calc(100dvh - 32px));
+  padding: 28px;
+  overflow: hidden;
+}
+
+.createDialogContent {
+  min-width: 0;
+  padding-right: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
 .dialogForm {
   display: grid;
-  padding-top: 4px;
+  width: 100%;
+  min-width: 0;
+  padding-top: 8px;
   gap: 18px;
+  grid-auto-flow: row;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dialogForm > * {
+  min-width: 0;
+  grid-column: 1 / -1 !important;
+}
+
+.dialogForm :global(.fui-Input),
+.dialogForm :global(.fui-Select) {
+  width: 100%;
+  max-width: 100%;
 }
 
 .dialogIntro {
-  margin: 0 0 4px;
+  max-width: 58ch;
+  margin: 2px 0 4px;
   color: var(--app-text-muted);
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.65;
+  text-wrap: pretty;
 }
 
 .dialogActions {
   display: flex;
   justify-content: flex-end;
-  padding-top: 6px;
-  gap: 9px;
+  padding-top: 14px;
+  border-top: 1px solid var(--app-border);
+  gap: 10px;
+}
+
+.dialogActions button {
+  min-width: 104px;
 }
 
 .pagination {
@@ -307,8 +345,25 @@
     flex: 1;
   }
 
+  .createDialog {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: 22px 18px 18px;
+  }
+
+  .dialogForm {
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .dialogActions {
     align-items: stretch;
+    padding-top: 14px;
     flex-direction: column-reverse;
+  }
+
+  .dialogActions button {
+    width: 100%;
   }
 }

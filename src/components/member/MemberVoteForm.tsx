@@ -12,10 +12,7 @@ import {
 } from "@fluentui/react-components";
 import {
   ArrowLeftRegular,
-  CheckmarkCircleRegular,
-  CircleHalfFillRegular,
   ClockRegular,
-  DismissCircleRegular,
   EditRegular,
   SendRegular,
 } from "@fluentui/react-icons";
@@ -33,11 +30,10 @@ const choices: Array<{
   value: VoteChoice;
   label: string;
   helper: string;
-  icon: typeof CheckmarkCircleRegular;
 }> = [
-  { value: "APPROVE", label: "通过", helper: "支持该人选通过本次评审", icon: CheckmarkCircleRegular },
-  { value: "REJECT", label: "不通过", helper: "不支持该人选通过本次评审", icon: DismissCircleRegular },
-  { value: "ABSTAIN", label: "弃权", helper: "本次不作通过或不通过选择", icon: CircleHalfFillRegular },
+  { value: "APPROVE", label: "通过", helper: "支持该人选通过本次评审" },
+  { value: "REJECT", label: "不通过", helper: "不支持该人选通过本次评审" },
+  { value: "ABSTAIN", label: "弃权", helper: "本次不作通过或不通过选择" },
 ];
 
 export function MemberVoteForm() {
@@ -171,13 +167,12 @@ export function MemberVoteForm() {
                       }}
                       aria-label="投票意见"
                     >
-                      {choices.map(({ value, label, helper, icon: Icon }) => (
+                      {choices.map(({ value, label, helper }) => (
                         <div className={styles.choice} key={value}>
                           <Radio
                             value={value}
                             label={
                               <span className={styles.choiceLabel}>
-                                <Icon aria-hidden="true" />
                                 <span>{label}<br /><small>{helper}</small></span>
                               </span>
                             }
@@ -207,7 +202,7 @@ export function MemberVoteForm() {
                 </Field>
 
                 <div className={styles.actions}>
-                  <Button as="a" href="/vote" appearance="secondary">暂不提交</Button>
+                  {/* <Button as="a" href="/vote" appearance="secondary">暂不提交</Button> */}
                   <Button
                     type="submit"
                     appearance="primary"

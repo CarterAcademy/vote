@@ -1,4 +1,5 @@
 export * from "./errors";
+export * from "./committees";
 export * from "./export";
 export * from "./polls";
 export * from "./reminders";

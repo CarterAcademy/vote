@@ -77,8 +77,16 @@ export const dingtalkAuthSchema = z.object({
 
 export const idSchema = z.uuid("无效的资源 ID");
 
+export const addCommitteeMemberSchema = z.object({
+  dingtalkUserId: nonBlank("钉钉用户 ID", 128),
+  name: nonBlank("姓名", 100),
+  department: z.string().trim().max(200, "部门不能超过 200 个字符").nullish(),
+  position: z.string().trim().max(100, "委员职务不能超过 100 个字符").nullish(),
+});
+
 export type CreatePollInput = z.infer<typeof createPollSchema>;
 export type VoteInput = z.infer<typeof voteSchema>;
 export type PollListQuery = z.infer<typeof pollListQuerySchema>;
 export type DingTalkAuthInput = z.infer<typeof dingtalkAuthSchema>;
 
+export type AddCommitteeMemberInput = z.infer<typeof addCommitteeMemberSchema>;

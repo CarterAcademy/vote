@@ -75,6 +75,37 @@ async function main() {
   assert.equal(academic?.memberCount, 10);
   assert.ok(academic);
 
+  const initialCommitteeMembers = await hr.json<{
+    items: Array<{ id: string; dingtalkUserId: string; name: string }>;
+  }>(`/api/committees/${academic.id}/members`);
+  assert.equal(initialCommitteeMembers.items.length, 10);
+
+  const addedCommitteeMember = await hr.json<{
+    member: { id: string; dingtalkUserId: string; name: string };
+  }>(`/api/committees/${academic.id}/members`, {
+    method: "POST",
+    body: JSON.stringify({
+      dingtalkUserId: "dt_e2e_committee_member",
+      name: "端到端委员",
+      department: "测试部门",
+      position: "委员",
+    }),
+  });
+  assert.equal(addedCommitteeMember.member.name, "端到端委员");
+
+  const committeeAfterAdd = await hr.json<{ items: Array<{ id: string }> }>(
+    `/api/committees/${academic.id}/members`,
+  );
+  assert.equal(committeeAfterAdd.items.length, 11);
+
+  await hr.json(`/api/committees/${academic.id}/members/${addedCommitteeMember.member.id}`, {
+    method: "DELETE",
+  });
+  const committeeAfterRemove = await hr.json<{ items: Array<{ id: string }> }>(
+    `/api/committees/${academic.id}/members`,
+  );
+  assert.equal(committeeAfterRemove.items.length, 10);
+
   const deadline = new Date(Date.now() + 60 * 60 * 1000).toISOString();
   const created = await hr.json<{ poll: { id: string; candidateName: string } }>(
     "/api/polls",
@@ -234,6 +265,7 @@ async function main() {
         success: true,
         checks: [
           "mock-session",
+          "committee-member-management",
           "hr-create",
           "member-result-isolation",
           "conditional-opinion",

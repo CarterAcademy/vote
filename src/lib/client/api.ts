@@ -2,6 +2,7 @@ import type {
   AdminPollDetail,
   ApiEnvelope,
   Committee,
+  CommitteeMember,
   MemberPollDetail,
   PollSummary,
   PollListResponse,
@@ -76,6 +77,25 @@ export const api = {
 
   committees: () =>
     apiRequest<{ items: Committee[] }>("/api/committees").then((result) => result.items),
+
+  committeeMembers: (committeeId: string) =>
+    apiRequest<{ items: CommitteeMember[] }>(`/api/committees/${committeeId}/members`).then(
+      (result) => result.items,
+    ),
+
+  addCommitteeMember: (
+    committeeId: string,
+    input: { dingtalkUserId: string; name: string; department?: string | null; position?: string | null },
+  ) =>
+    apiRequest<{ member: CommitteeMember }>(`/api/committees/${committeeId}/members`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  removeCommitteeMember: (committeeId: string, memberId: string) =>
+    apiRequest<{ success: boolean }>(`/api/committees/${committeeId}/members/${memberId}`, {
+      method: "DELETE",
+    }),
 
   polls: (query?: {
     q?: string;

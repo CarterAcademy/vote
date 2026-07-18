@@ -104,13 +104,7 @@
 
 .choiceLabel {
   display: inline-flex;
-  align-items: center;
   font-weight: 620;
-  gap: 8px;
-}
-
-.choiceLabel svg {
-  font-size: 20px;
 }
 
 .opinionArea textarea {
@@ -180,4 +174,3 @@
     width: 100%;
   }
 }
-

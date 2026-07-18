@@ -213,7 +213,7 @@ export function AdminOverview() {
           <>
             <section className={styles.metrics} aria-label="投票概览">
               <div className={styles.metric}>
-                <span className={styles.metricLabel}>当前页进行中</span>
+                <span className={styles.metricLabel}> 进行中</span>
                 <span className={styles.metricValue}>{stats.active}</span>
               </div>
               <div className={styles.metric}>
@@ -221,11 +221,11 @@ export function AdminOverview() {
                 <span className={styles.metricValue}>{stats.total}</span>
               </div>
               <div className={styles.metric}>
-                <span className={styles.metricLabel}>当前页已结束</span>
+                <span className={styles.metricLabel}> 已结束</span>
                 <span className={styles.metricValue}>{stats.closed}</span>
               </div>
               <div className={styles.metric}>
-                <span className={styles.metricLabel}>当前页投票率</span>
+                <span className={styles.metricLabel}> 总投票率</span>
                 <span className={styles.metricValue}>{percent(stats.turnout)}</span>
               </div>
             </section>
@@ -387,17 +387,17 @@ export function AdminOverview() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(_, data) => setDialogOpen(data.open)}>
-        <DialogSurface>
+        <DialogSurface className={styles.createDialog}>
           <DialogBody>
             <DialogTitle>发起人选评审投票</DialogTitle>
-            <DialogContent>
+            <DialogContent className={styles.createDialogContent}>
               <p className={styles.dialogIntro}>每场只评审一位人选。委员名单会按所选委员会自动固化。</p>
               {formError && (
                 <MessageBar intent="error" style={{ marginBottom: 14 }}>
                   <MessageBarBody>{formError}</MessageBarBody>
                 </MessageBar>
               )}
-              <form className={styles.dialogForm} onSubmit={(event) => { event.preventDefault(); void createPoll(); }}>
+              <form id="create-poll-form" className={styles.dialogForm} onSubmit={(event) => { event.preventDefault(); void createPoll(); }}>
                 <Field
                   label="人选姓名"
                   required
@@ -457,16 +457,16 @@ export function AdminOverview() {
                     contentBefore={<CalendarRegular />}
                   />
                 </Field>
-                <DialogActions className={styles.dialogActions}>
-                  <DialogTrigger disableButtonEnhancement>
-                    <Button appearance="secondary" disabled={submitting}>取消</Button>
-                  </DialogTrigger>
-                  <Button type="submit" appearance="primary" disabled={submitting}>
-                    {submitting ? "正在发起" : "确认发起"}
-                  </Button>
-                </DialogActions>
               </form>
             </DialogContent>
+            <DialogActions className={styles.dialogActions}>
+              <DialogTrigger disableButtonEnhancement>
+                <Button appearance="secondary" disabled={submitting}>取消</Button>
+              </DialogTrigger>
+              <Button type="submit" form="create-poll-form" appearance="primary" disabled={submitting}>
+                {submitting ? "正在发起" : "确认发起"}
+              </Button>
+            </DialogActions>
           </DialogBody>
         </DialogSurface>
       </Dialog>

@@ -7,6 +7,7 @@ import {
 import {
   ArrowExitRegular,
   HomeRegular,
+  PeopleCommunityRegular,
   PeopleTeamRegular,
 } from "@fluentui/react-icons";
 import Link from "next/link";
@@ -25,6 +26,7 @@ interface AppShellProps {
 
 const adminLinks = [
   { href: "/admin", label: "投票管理", icon: HomeRegular, exact: true },
+  { href: "/admin/committees", label: "委员会管理", icon: PeopleCommunityRegular, exact: true },
 ];
 
 const memberLinks = [

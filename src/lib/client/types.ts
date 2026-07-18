@@ -28,6 +28,16 @@ export interface Committee {
   memberCount: number;
 }
 
+export interface CommitteeMember {
+  id: string;
+  userId: string;
+  dingtalkUserId: string;
+  name: string;
+  department: string | null;
+  position: string | null;
+  joinedAt: string;
+}
+
 export interface PollSummary {
   id: string;
   title: string;
