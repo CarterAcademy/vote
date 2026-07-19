@@ -394,6 +394,18 @@ async function getBasePoll(pollId: string) {
 
 export async function getPollDetail(
   pollId: string,
+  actor: SessionUser & { role: "HR" },
+): Promise<HrPollDetail>;
+export async function getPollDetail(
+  pollId: string,
+  actor: SessionUser & { role: "MEMBER" },
+): Promise<MemberPollDetail>;
+export async function getPollDetail(
+  pollId: string,
+  actor: SessionUser,
+): Promise<HrPollDetail | MemberPollDetail>;
+export async function getPollDetail(
+  pollId: string,
   actor: SessionUser,
 ): Promise<HrPollDetail | MemberPollDetail> {
   const db = await ensureDatabaseReady();

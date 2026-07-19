@@ -16,8 +16,7 @@ import {
   EditRegular,
   SendRegular,
 } from "@fluentui/react-icons";
-import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { formatDateTime, isPast } from "@/lib/client/format";
 import type { MemberPollDetail, VoteChoice } from "@/lib/client/types";
@@ -36,13 +35,17 @@ const choices: Array<{
   { value: "ABSTAIN", label: "弃权", helper: "本次不作通过或不通过选择" },
 ];
 
-export function MemberVoteForm() {
-  const params = useParams<{ id: string }>();
-  const pollId = params.id;
-  const [detail, setDetail] = useState<MemberPollDetail | null>(null);
-  const [choice, setChoice] = useState<VoteChoice | "">("");
-  const [opinion, setOpinion] = useState("");
-  const [loading, setLoading] = useState(true);
+export function MemberVoteForm({
+  pollId,
+  initialDetail,
+}: {
+  pollId: string;
+  initialDetail: MemberPollDetail;
+}) {
+  const [detail, setDetail] = useState<MemberPollDetail | null>(initialDetail);
+  const [choice, setChoice] = useState<VoteChoice | "">(initialDetail.myVote?.choice ?? "");
+  const [opinion, setOpinion] = useState(initialDetail.myVote?.opinion ?? "");
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -62,10 +65,6 @@ export function MemberVoteForm() {
       setLoading(false);
     }
   }, [pollId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const canEdit = useMemo(() => {
     if (!detail) return false;

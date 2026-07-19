@@ -85,11 +85,12 @@ BACKUP_RETENTION_DAYS=<按单位制度填写，例如 3650>
 
 ```bash
 docker compose build
-docker compose --profile tools run --rm migrate
 # 首次部署还需按“生产组织初始化”导入真实 HR 和委员名单
 docker compose up -d app
 docker compose ps
 ```
+
+Compose 会先运行一次性迁移服务，迁移成功后才启动应用。应用请求路径本身不会执行持久化数据库迁移。
 
 反向代理必须终止 HTTPS，并只将应用端口暴露给代理。PostgreSQL 不对公网开放。
 

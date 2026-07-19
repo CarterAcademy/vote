@@ -2,12 +2,14 @@
 
 import {
   FluentProvider,
+  SSRProvider,
   createLightTheme,
   type BrandVariants,
   type Theme,
 } from "@fluentui/react-components";
 import type { ReactNode } from "react";
 import { SessionProvider } from "@/lib/client/session";
+import type { SessionPayload } from "@/lib/client/types";
 
 const brand: BrandVariants = {
   10: "#001713",
@@ -37,10 +39,18 @@ const appTheme: Theme = {
   borderRadiusLarge: "12px",
 };
 
-export function AppProvider({ children }: { children: ReactNode }) {
+export function AppProvider({
+  children,
+  initialSession,
+}: {
+  children: ReactNode;
+  initialSession: SessionPayload;
+}) {
   return (
-    <FluentProvider theme={appTheme} style={{ minHeight: "100dvh" }}>
-      <SessionProvider>{children}</SessionProvider>
-    </FluentProvider>
+    <SSRProvider>
+      <FluentProvider theme={appTheme} style={{ minHeight: "100dvh" }}>
+        <SessionProvider initialSession={initialSession}>{children}</SessionProvider>
+      </FluentProvider>
+    </SSRProvider>
   );
 }

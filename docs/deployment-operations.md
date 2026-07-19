@@ -91,12 +91,13 @@ BACKUP_RETENTION_DAYS=3650
 
 ```bash
 docker compose build
-docker compose --profile tools run --rm migrate
 # 仅首次冷启动：按上一节挂载真实 organization.json 并执行 db:provision
 docker compose up -d app
 docker compose ps
 curl --fail http://127.0.0.1:3000/api/health
 ```
+
+`app` 将等待一次性的 `migrate` 服务成功完成后再启动，因此数据库迁移不会占用首个业务请求，也不会由多个 Web 实例并发执行。迁移失败时应用不会启动；请先检查迁移日志并按发布/回滚流程处理。
 
 `DATABASE_URL` 中使用 `db` 是因为应用在 Compose 网络内连接数据库。数据库服务不映射宿主机端口。
 

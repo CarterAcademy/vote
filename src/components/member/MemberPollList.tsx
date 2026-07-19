@@ -12,7 +12,7 @@ import {
   ClockRegular,
   LockClosedRegular,
 } from "@fluentui/react-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { formatCompactDate, isPast } from "@/lib/client/format";
 import type { PollSummary } from "@/lib/client/types";
@@ -23,10 +23,10 @@ import styles from "./MemberPollList.module.css";
 
 type Filter = "pending" | "all";
 
-export function MemberPollList() {
-  const [polls, setPolls] = useState<PollSummary[]>([]);
+export function MemberPollList({ initialPolls }: { initialPolls: PollSummary[] }) {
+  const [polls, setPolls] = useState<PollSummary[]>(initialPolls);
   const [filter, setFilter] = useState<Filter>("pending");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -41,10 +41,6 @@ export function MemberPollList() {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const pendingCount = useMemo(
     () => polls.filter((poll) => !poll.hasVoted && poll.status === "OPEN" && !isPast(poll.deadlineAt)).length,

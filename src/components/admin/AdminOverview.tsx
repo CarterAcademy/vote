@@ -29,7 +29,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { formatCompactDate, isPast, localDateTimeInput, percent } from "@/lib/client/format";
-import type { Committee, PollSummary } from "@/lib/client/types";
+import type { Committee, PollListResponse, PollSummary } from "@/lib/client/types";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { PollStatusBadge } from "@/components/StatusBadges";
@@ -56,16 +56,22 @@ const emptyForm: CreateForm = {
   deadlineAt: "",
 };
 
-export function AdminOverview() {
+export function AdminOverview({
+  initialPolls,
+  initialCommittees,
+}: {
+  initialPolls: PollListResponse;
+  initialCommittees: Committee[];
+}) {
   const router = useRouter();
-  const [polls, setPolls] = useState<PollSummary[]>([]);
-  const [committees, setCommittees] = useState<Committee[]>([]);
+  const [polls, setPolls] = useState<PollSummary[]>(initialPolls.items);
+  const [committees, setCommittees] = useState<Committee[]>(initialCommittees);
   const [query, setQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(initialPolls.total);
+  const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [committeeError, setCommitteeError] = useState<string | null>(null);
@@ -74,7 +80,8 @@ export function AdminOverview() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [attempted, setAttempted] = useState(false);
-  const loadedOnce = useRef(false);
+  const loadedOnce = useRef(true);
+  const skipInitialPollLoad = useRef(true);
   const requestSequence = useRef(0);
   const pageSize = 20;
   const dateRangeInvalid = Boolean(fromDate && toDate && fromDate > toDate);
@@ -125,13 +132,13 @@ export function AdminOverview() {
   }, []);
 
   useEffect(() => {
+    if (skipInitialPollLoad.current) {
+      skipInitialPollLoad.current = false;
+      return;
+    }
     const timeout = window.setTimeout(() => void load(), query ? 350 : 0);
     return () => window.clearTimeout(timeout);
   }, [load, query]);
-
-  useEffect(() => {
-    void loadCommittees();
-  }, [loadCommittees]);
 
   const stats = useMemo(() => {
     const active = polls.filter((poll) => poll.status === "OPEN" && !isPast(poll.deadlineAt));

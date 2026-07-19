@@ -22,7 +22,7 @@ import {
   PeopleCommunityRegular,
   PersonAddRegular,
 } from "@fluentui/react-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { api, errorMessage } from "@/lib/client/api";
@@ -51,13 +51,19 @@ function initials(name: string) {
   return name.trim().slice(-2);
 }
 
-export function CommitteeManagement() {
+export function CommitteeManagement({
+  initialCommittees,
+  initialMembersByCommittee,
+}: {
+  initialCommittees: Committee[];
+  initialMembersByCommittee: Record<string, CommitteeMember[]>;
+}) {
   const { mockMode, corpId } = useSession();
-  const [committees, setCommittees] = useState<Committee[]>([]);
-  const [membersByCommittee, setMembersByCommittee] = useState<Record<string, CommitteeMember[]>>({});
-  const [selectedId, setSelectedId] = useState("");
+  const [committees, setCommittees] = useState<Committee[]>(initialCommittees);
+  const [membersByCommittee, setMembersByCommittee] = useState<Record<string, CommitteeMember[]>>(initialMembersByCommittee);
+  const [selectedId, setSelectedId] = useState(initialCommittees[0]?.id ?? "");
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -84,10 +90,6 @@ export function CommitteeManagement() {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const selectedCommittee = committees.find((committee) => committee.id === selectedId);
   const members = useMemo(

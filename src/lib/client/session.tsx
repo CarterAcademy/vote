@@ -4,13 +4,12 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { api, ApiError } from "./api";
-import type { DemoUser, SessionUser } from "./types";
+import type { DemoUser, SessionPayload, SessionUser } from "./types";
 
 interface SessionContextValue {
   user: SessionUser | null;
@@ -25,12 +24,18 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [demoUsers, setDemoUsers] = useState<DemoUser[]>([]);
-  const [mockMode, setMockMode] = useState(false);
-  const [corpId, setCorpId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+export function SessionProvider({
+  children,
+  initialSession,
+}: {
+  children: ReactNode;
+  initialSession: SessionPayload;
+}) {
+  const [user, setUser] = useState<SessionUser | null>(initialSession.user);
+  const [demoUsers, setDemoUsers] = useState<DemoUser[]>(initialSession.demoUsers ?? []);
+  const [mockMode, setMockMode] = useState(Boolean(initialSession.mockMode));
+  const [corpId, setCorpId] = useState<string | null>(initialSession.corpId ?? null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -53,10 +58,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
 
   const value = useMemo(
     () => ({

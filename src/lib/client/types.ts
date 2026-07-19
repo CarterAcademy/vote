@@ -107,7 +107,7 @@ export interface PollVoter {
   opinion?: string | null;
   submittedAt?: string | null;
   updatedAt?: string | null;
-  version?: number;
+  version?: number | null;
 }
 
 export interface AuditLog {

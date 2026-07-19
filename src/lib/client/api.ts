@@ -26,16 +26,62 @@ export class ApiError extends Error {
   }
 }
 
-async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
-  const headers = new Headers(init?.headers);
-  if (init?.body && !headers.has("Content-Type")) {
+interface ApiRequestOptions extends RequestInit {
+  dedupe?: boolean;
+  memoryCacheMs?: number;
+}
+
+const inFlightGets = new Map<string, Promise<unknown>>();
+const memoryCache = new Map<string, { expiresAt: number; value: unknown }>();
+
+function invalidateMemoryCache(prefix: string) {
+  for (const key of memoryCache.keys()) {
+    if (key.startsWith(prefix)) memoryCache.delete(key);
+  }
+}
+
+async function apiRequest<T>(url: string, init?: ApiRequestOptions): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const dedupeKey =
+    method === "GET" && (init?.dedupe || init?.memoryCacheMs) ? url : null;
+  const cached = dedupeKey ? memoryCache.get(dedupeKey) : undefined;
+  if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+  if (cached && dedupeKey) memoryCache.delete(dedupeKey);
+
+  const existing = dedupeKey ? inFlightGets.get(dedupeKey) : undefined;
+  if (existing) return existing as Promise<T>;
+
+  const request = performRequest<T>(url, init);
+  if (!dedupeKey) return request;
+
+  inFlightGets.set(dedupeKey, request);
+  try {
+    const value = await request;
+    if (init?.memoryCacheMs) {
+      memoryCache.set(dedupeKey, {
+        expiresAt: Date.now() + init.memoryCacheMs,
+        value,
+      });
+    }
+    return value;
+  } finally {
+    inFlightGets.delete(dedupeKey);
+  }
+}
+
+async function performRequest<T>(url: string, init?: ApiRequestOptions): Promise<T> {
+  const { dedupe, memoryCacheMs, ...requestInit } = init ?? {};
+  void dedupe;
+  void memoryCacheMs;
+  const headers = new Headers(requestInit.headers);
+  if (requestInit.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
   let response: Response;
   try {
     response = await fetch(url, {
-      ...init,
+      ...requestInit,
       headers,
       credentials: "same-origin",
       cache: "no-store",
@@ -76,26 +122,35 @@ export const api = {
   logout: () => apiRequest<{ success: boolean }>("/api/logout", { method: "POST" }),
 
   committees: () =>
-    apiRequest<{ items: Committee[] }>("/api/committees").then((result) => result.items),
+    apiRequest<{ items: Committee[] }>("/api/committees", {
+      dedupe: true,
+      memoryCacheMs: 60_000,
+    }).then((result) => result.items),
 
   committeeMembers: (committeeId: string) =>
     apiRequest<{ items: CommitteeMember[] }>(`/api/committees/${committeeId}/members`).then(
       (result) => result.items,
     ),
 
-  addCommitteeMember: (
+  addCommitteeMember: async (
     committeeId: string,
     input: { dingtalkUserId: string; name: string; department?: string | null; position?: string | null },
-  ) =>
-    apiRequest<{ member: CommitteeMember }>(`/api/committees/${committeeId}/members`, {
+  ) => {
+    const result = await apiRequest<{ member: CommitteeMember }>(`/api/committees/${committeeId}/members`, {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    });
+    invalidateMemoryCache("/api/committees");
+    return result;
+  },
 
-  removeCommitteeMember: (committeeId: string, memberId: string) =>
-    apiRequest<{ success: boolean }>(`/api/committees/${committeeId}/members/${memberId}`, {
+  removeCommitteeMember: async (committeeId: string, memberId: string) => {
+    const result = await apiRequest<{ success: boolean }>(`/api/committees/${committeeId}/members/${memberId}`, {
       method: "DELETE",
-    }),
+    });
+    invalidateMemoryCache("/api/committees");
+    return result;
+  },
 
   polls: (query?: {
     q?: string;

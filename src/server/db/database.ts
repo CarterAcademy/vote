@@ -68,12 +68,15 @@ export function getDatabase(): Kysely<DatabaseSchema> {
 export async function ensureDatabaseReady(): Promise<Kysely<DatabaseSchema>> {
   globalDatabase.__committeeVoteDatabase ??= makeDatabase();
   const holder = globalDatabase.__committeeVoteDatabase;
-  holder.ready ??= (async () => {
-    await migrateDatabase(holder.db);
-    if (holder.memory) {
-      await seedDatabase(holder.db);
-    }
-  })();
+  // Persistent databases are migrated by the deployment job before the web
+  // process starts. Keeping DDL out of request handling avoids cold-start
+  // latency and prevents multiple app replicas from racing to run migrations.
+  holder.ready ??= holder.memory
+    ? (async () => {
+        await migrateDatabase(holder.db);
+        await seedDatabase(holder.db);
+      })()
+    : Promise.resolve();
   await holder.ready;
   return holder.db;
 }

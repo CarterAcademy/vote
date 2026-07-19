@@ -29,7 +29,6 @@ import {
   MailAlertRegular,
   PeopleRegular,
 } from "@fluentui/react-icons";
-import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { choiceLabel, formatDateTime, isPast, percent } from "@/lib/client/format";
@@ -77,11 +76,15 @@ function auditDetails(details: AuditLog["details"]): string | null {
   return parts.length ? parts.join("，") : null;
 }
 
-export function AdminPollDetail() {
-  const params = useParams<{ id: string }>();
-  const pollId = params.id;
-  const [detail, setDetail] = useState<Detail | null>(null);
-  const [loading, setLoading] = useState(true);
+export function AdminPollDetail({
+  pollId,
+  initialDetail,
+}: {
+  pollId: string;
+  initialDetail: Detail;
+}) {
+  const [detail, setDetail] = useState<Detail | null>(initialDetail);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -112,10 +115,6 @@ export function AdminPollDetail() {
       setRefreshing(false);
     }
   }, [pollId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
