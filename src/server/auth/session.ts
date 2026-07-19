@@ -5,6 +5,7 @@ import { cache } from "react";
 import type { SessionUser } from "@/types";
 
 import { ensureDatabaseReady } from "../db";
+import { isMockModeEnabled } from "../dingtalk";
 import { DomainError } from "../services/errors";
 
 export const SESSION_COOKIE_NAME = "committee_vote_session";
@@ -109,7 +110,7 @@ export async function setSessionCookie(user: SessionUser): Promise<void> {
   cookieStore.set(SESSION_COOKIE_NAME, await createSessionToken(user), {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" && !isMockModeEnabled(),
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   });
@@ -120,7 +121,7 @@ export async function clearSessionCookie(): Promise<void> {
   cookieStore.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" && !isMockModeEnabled(),
     path: "/",
     maxAge: 0,
   });

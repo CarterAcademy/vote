@@ -5,6 +5,7 @@ import type { SessionUser } from "@/types";
 import { ensureDatabaseReady } from "../db";
 import {
   getDingTalkGateway,
+  isMockModeEnabled,
   type DingTalkGateway,
 } from "../dingtalk";
 import { assertHr, writeAuditLog } from "./common";
@@ -46,11 +47,19 @@ export async function remindMissingVoters(
   assertHr(actor);
   const db = await ensureDatabaseReady();
   const configuredBaseUrl = process.env.DINGTALK_APP_BASE_URL?.trim();
-  if (!configuredBaseUrl && process.env.NODE_ENV === "production") {
+  if (
+    !configuredBaseUrl &&
+    process.env.NODE_ENV === "production" &&
+    !isMockModeEnabled()
+  ) {
     throw new Error("DINGTALK_APP_BASE_URL must be configured in production");
   }
   const baseUrl = configuredBaseUrl ?? "http://localhost:3000";
-  if (process.env.NODE_ENV === "production" && new URL(baseUrl).protocol !== "https:") {
+  if (
+    process.env.NODE_ENV === "production" &&
+    !isMockModeEnabled() &&
+    new URL(baseUrl).protocol !== "https:"
+  ) {
     throw new Error("DINGTALK_APP_BASE_URL must use HTTPS in production");
   }
   const actionUrl = new URL(`/vote/${pollId}`, baseUrl).toString();
