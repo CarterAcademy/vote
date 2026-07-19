@@ -1,7 +1,11 @@
-import { closeDatabase, ensureDatabaseReady } from "../src/server/db";
+import {
+  closeDatabase,
+  getDatabase,
+  migrateDatabase,
+} from "../src/server/db";
 
 async function main(): Promise<void> {
-  await ensureDatabaseReady();
+  await migrateDatabase(getDatabase());
   process.stdout.write("Database schema is up to date.\n");
 }
 
@@ -13,4 +17,3 @@ main()
     );
     process.exitCode = 1;
   });
-
