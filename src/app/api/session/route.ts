@@ -1,5 +1,6 @@
 import { getSessionUser } from "@/server/auth/session";
 import { ensureDatabaseReady } from "@/server/db";
+import { isMockModeEnabled } from "@/server/dingtalk";
 import { listDemoUsers } from "@/server/services/users";
 import { ok, routeError } from "../_lib/http";
 
@@ -7,9 +8,7 @@ export async function GET() {
   try {
     await ensureDatabaseReady();
     const user = await getSessionUser();
-    const mockMode =
-      process.env.DINGTALK_MOCK_ENABLED === "true" &&
-      process.env.NODE_ENV !== "production";
+    const mockMode = isMockModeEnabled();
     const demoUsers = mockMode ? await listDemoUsers() : undefined;
     return ok({
       user,

@@ -4,7 +4,7 @@
 
 ## 身份与授权
 
-- [ ] 生产强制 `DINGTALK_MOCK_ENABLED=false`；mock 登录路由在生产不可访问。
+- [ ] 生产强制 `DINGTALK_MOCK_ENABLED=false` 且 `ALLOW_INSECURE_PRODUCTION_MOCK=false`；mock 登录路由在生产不可访问。后者仅允许隔离的内网演示环境使用优化后的 production build，不得用于真实业务部署。
 - [ ] 临时 `authCode` 只发往本服务 HTTPS endpoint，单次使用，不记录。
 - [ ] AppSecret、数据库口令、会话密钥、维护密钥只在服务端 Secret Manager 中。
 - [ ] 会话 Cookie 使用 `HttpOnly`、`Secure`、合理 `SameSite`、短有效期和轮换策略。

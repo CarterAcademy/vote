@@ -5,7 +5,7 @@
 ## A. 构建与环境
 
 - [ ] `npm ci`、`npm run lint`、`npm run typecheck`、`npm test`、`npm run build` 全部成功。
-- [ ] 生产环境 `DINGTALK_MOCK_ENABLED=false`，访问 demo 登录被拒绝或不存在。
+- [ ] 生产环境 `DINGTALK_MOCK_ENABLED=false` 且 `ALLOW_INSECURE_PRODUCTION_MOCK=false`，访问 demo 登录被拒绝或不存在。
 - [ ] 缺少数据库、会话密钥或钉钉关键凭证时应用 fail-fast，而不是带错误配置继续运行。
 - [ ] `GET /api/health` 正常；响应不含数据库 URL、密钥、用户或投票数据。
 - [ ] HTTP 自动跳 HTTPS；证书链、Cookie Secure 和代理协议识别正确。

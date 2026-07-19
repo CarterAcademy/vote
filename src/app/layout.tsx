@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { AppProvider } from "@/components/AppProvider";
 import { getSessionUser } from "@/server/auth/session";
+import { isMockModeEnabled } from "@/server/dingtalk";
 import { listDemoUsers } from "@/server/services/users";
 import "./globals.css";
 
@@ -21,9 +22,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const mockMode =
-    process.env.DINGTALK_MOCK_ENABLED === "true" &&
-    process.env.NODE_ENV !== "production";
+  const mockMode = isMockModeEnabled();
   const [user, demoUsers] = await Promise.all([
     getSessionUser(),
     mockMode ? listDemoUsers() : Promise.resolve([]),

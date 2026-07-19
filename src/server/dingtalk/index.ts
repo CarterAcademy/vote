@@ -4,15 +4,30 @@ import { RealDingTalkGateway } from "./real";
 
 let singleton: DingTalkGateway | undefined;
 
+export function isMockModeEnabled(): boolean {
+  const requested = process.env.DINGTALK_MOCK_ENABLED === "true";
+  return (
+    requested &&
+    (process.env.NODE_ENV !== "production" ||
+      process.env.ALLOW_INSECURE_PRODUCTION_MOCK === "true")
+  );
+}
+
 export function getDingTalkGateway(): DingTalkGateway {
   if (singleton) return singleton;
 
   const appKey = process.env.DINGTALK_CLIENT_ID?.trim();
   const appSecret = process.env.DINGTALK_CLIENT_SECRET?.trim();
-  const forceMock = process.env.DINGTALK_MOCK_ENABLED === "true";
+  const forceMock = isMockModeEnabled();
 
-  if (forceMock && process.env.NODE_ENV === "production") {
-    throw new Error("DINGTALK_MOCK_ENABLED must be false in production");
+  if (
+    process.env.DINGTALK_MOCK_ENABLED === "true" &&
+    process.env.NODE_ENV === "production" &&
+    !forceMock
+  ) {
+    throw new Error(
+      "DINGTALK_MOCK_ENABLED requires ALLOW_INSECURE_PRODUCTION_MOCK=true in a production build",
+    );
   }
 
   if (forceMock || !appKey || !appSecret) {
