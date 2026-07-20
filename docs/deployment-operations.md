@@ -101,9 +101,19 @@ curl --fail http://127.0.0.1:3000/api/health
 
 `DATABASE_URL` 中使用 `db` 是因为应用在 Compose 网络内连接数据库。数据库服务不映射宿主机端口。
 
+本仓库当前生产机为 `ubuntu@10.1.131.51`。从仓库根目录运行 `./deploy.sh` 会先执行本地发布检查，再把代码同步为 `/srv/committee-vote/releases/` 下的新版本、备份已有数据库、使用服务器内置 Node 22 构建、原子切换 `current` 链接并重启 `committee-vote.service`，最后检查应用和调研报告 URL。生产 Secret 保存在服务器的 `/srv/committee-vote/app.env`（权限 `0600`），部署脚本不会上传或覆盖该文件。
+
+调研报告随应用镜像发布，nginx 地址为：
+
+```text
+http://10.1.131.51/investigation-summary.html
+```
+
 ## 5. HTTPS 反向代理
 
 参考 [infra/nginx/committee-vote.conf.example](../infra/nginx/committee-vote.conf.example)。替换正式域名和证书路径后再启用。
+
+当前内网生产机的 HTTP 配置为 [infra/nginx/committee-vote.production.conf](../infra/nginx/committee-vote.production.conf)。nginx 的 `/` 已由其他系统使用，因此部署脚本只把精确路径 `/investigation-summary.html` 代理到 Committee Vote 的 `10.1.131.51:3000`，不会接管其他 URL。配置正式域名和证书后，应切换到 HTTPS 示例并更新钉钉应用基地址。
 
 - 强制 HTTP 跳转 HTTPS，启用 HSTS 前先确认所有子域均支持 HTTPS。
 - 限制请求体大小和合理超时。

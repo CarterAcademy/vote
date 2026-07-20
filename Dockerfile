@@ -23,6 +23,9 @@ RUN groupadd --system --gid 1001 nodejs \
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Keep the source report in docs/ while publishing it as a static production
+# asset. Next's standalone server serves files from ./public at their root URL.
+COPY --from=builder --chown=nextjs:nodejs /app/docs/investigation-summary.html ./public/investigation-summary.html
 
 USER nextjs
 EXPOSE 3000
