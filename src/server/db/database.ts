@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Kysely, PostgresDialect } from "kysely";
 import { DataType, newDb, type IMemoryDb } from "pg-mem";
 import { Pool } from "pg";
@@ -60,6 +61,40 @@ function makeDatabase(): DatabaseHolder {
   };
 }
 
+async function provisionDevelopmentAdmin(
+  db: Kysely<DatabaseSchema>,
+): Promise<void> {
+  const dingtalkUserId = process.env.DINGTALK_DEV_ADMIN_USER_ID?.trim();
+  const name = process.env.DINGTALK_DEV_ADMIN_NAME?.trim();
+  const department = process.env.DINGTALK_DEV_ADMIN_DEPARTMENT?.trim() || null;
+
+  if (!dingtalkUserId || !name) {
+    throw new Error(
+      "DINGTALK_DEV_ADMIN_USER_ID and DINGTALK_DEV_ADMIN_NAME are required when local in-memory development uses real DingTalk",
+    );
+  }
+
+  await db
+    .insertInto("users")
+    .values({
+      id: randomUUID(),
+      dingtalk_user_id: dingtalkUserId,
+      name,
+      department,
+      role: "HR",
+    })
+    .onConflict((conflict) =>
+      conflict.column("dingtalk_user_id").doUpdateSet({
+        name,
+        department,
+        role: "HR",
+        is_active: true,
+        updated_at: new Date(),
+      }),
+    )
+    .execute();
+}
+
 export function getDatabase(): Kysely<DatabaseSchema> {
   globalDatabase.__committeeVoteDatabase ??= makeDatabase();
   return globalDatabase.__committeeVoteDatabase.db;
@@ -74,7 +109,14 @@ export async function ensureDatabaseReady(): Promise<Kysely<DatabaseSchema>> {
   holder.ready ??= holder.memory
     ? (async () => {
         await migrateDatabase(holder.db);
-        await seedDatabase(holder.db);
+        if (
+          process.env.NODE_ENV === "test" ||
+          process.env.DINGTALK_MOCK_ENABLED === "true"
+        ) {
+          await seedDatabase(holder.db);
+        } else {
+          await provisionDevelopmentAdmin(holder.db);
+        }
       })()
     : Promise.resolve();
   await holder.ready;

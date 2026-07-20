@@ -315,3 +315,30 @@ export async function authenticateDingTalkCode(
 
   return user;
 }
+
+export async function authenticateDingTalkWebCode(
+  authCode: string,
+  gateway: DingTalkGateway = getDingTalkGateway(),
+): Promise<SessionUser> {
+  let dingtalkUserId: string;
+  try {
+    const identity = await gateway.exchangeWebAuthCode(authCode);
+    dingtalkUserId = identity.userId;
+  } catch (error) {
+    throw new DomainError(
+      "DINGTALK_ERROR",
+      "钉钉网页身份验证失败，请重新登录",
+      error instanceof Error ? { cause: error.message } : undefined,
+    );
+  }
+
+  const user = await getUserByDingTalkUserId(dingtalkUserId);
+  if (!user) {
+    throw new DomainError(
+      "FORBIDDEN",
+      "当前钉钉账号不在本系统的 HR 或委员名单中",
+    );
+  }
+
+  return user;
+}

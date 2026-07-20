@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:remote-real": "bash scripts/remote-real-data-dev.sh --confirm-production-data",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -17,6 +18,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:provision": "tsx scripts/provision.ts",
+    "db:provision-dev-admin": "tsx scripts/provision-dev-admin.ts",
     "backup": "node scripts/backup-db.mjs"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, MessageBar, MessageBarBody, Skeleton, SkeletonItem } from "@fluentui/react-components";
+import { Button, Input, MessageBar, MessageBarBody, Skeleton, SkeletonItem } from "@fluentui/react-components";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
@@ -12,6 +12,8 @@ export function DingTalkAuthBootstrap() {
   const { corpId, setAuthenticatedUser } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [authenticating, setAuthenticating] = useState(false);
+  const [webLogin, setWebLogin] = useState(false);
+  const [callbackUrl, setCallbackUrl] = useState("");
   const attempted = useRef(false);
   const authenticate = useCallback(async () => {
     if (!corpId) {
@@ -24,7 +26,8 @@ export function DingTalkAuthBootstrap() {
     try {
       const dd = await import("dingtalk-jsapi");
       if (dd.env.platform === "notInDingTalk") {
-        throw new Error("请从钉钉工作台或群聊中的应用入口打开本系统。");
+        setWebLogin(true);
+        throw new Error("当前在浏览器中，请使用钉钉扫码或账号登录。");
       }
       const result = await dd.runtime.permission.requestAuthCode({ corpId });
       const session = await api.dingtalkLogin(result.code);
@@ -38,6 +41,28 @@ export function DingTalkAuthBootstrap() {
       setAuthenticating(false);
     }
   }, [corpId, router, setAuthenticatedUser]);
+
+  const completeWebLogin = useCallback(async () => {
+    setAuthenticating(true);
+    setError(null);
+    try {
+      const callback = new URL(callbackUrl.trim());
+      const authCode = callback.searchParams.get("authCode") ?? callback.searchParams.get("code");
+      const state = callback.searchParams.get("state");
+      if (!authCode || !state) {
+        throw new Error("回调地址中缺少钉钉授权码或登录状态");
+      }
+      const session = await api.dingtalkWebComplete(authCode, state);
+      if (!session.user) throw new Error("钉钉身份未绑定系统用户，请联系 HR 管理员。");
+      setAuthenticatedUser(session.user);
+      router.replace(session.user.role === "HR" ? "/admin" : "/vote");
+      router.refresh();
+    } catch (authError) {
+      setError(errorMessage(authError));
+    } finally {
+      setAuthenticating(false);
+    }
+  }, [callbackUrl, router, setAuthenticatedUser]);
 
   useEffect(() => {
     if (attempted.current) return;
@@ -68,9 +93,37 @@ export function DingTalkAuthBootstrap() {
             <MessageBar intent="error">
               <MessageBarBody>{error}</MessageBarBody>
             </MessageBar>
-            <Button appearance="primary" onClick={() => void authenticate()} disabled={authenticating}>
-              重新验证
+            <Button
+              appearance="primary"
+              onClick={() => {
+                if (webLogin) {
+                  window.location.assign("/api/auth/dingtalk/web/start");
+                } else {
+                  void authenticate();
+                }
+              }}
+              disabled={authenticating}
+            >
+              {webLogin ? "使用钉钉登录" : "重新验证"}
             </Button>
+            {webLogin && (
+              <div className={styles.manualLogin}>
+                <p>若 Chrome 阻止返回本机，请复制地址栏中的完整回调地址，在此粘贴后完成登录。</p>
+                <Input
+                  aria-label="钉钉授权回调地址"
+                  placeholder="粘贴包含 authCode 和 state 的回调地址"
+                  value={callbackUrl}
+                  onChange={(_, data) => setCallbackUrl(data.value)}
+                />
+                <Button
+                  appearance="secondary"
+                  onClick={() => void completeWebLogin()}
+                  disabled={authenticating || !callbackUrl.trim()}
+                >
+                  完成钉钉登录
+                </Button>
+              </div>
+            )}
           </>
         )}
       </section>

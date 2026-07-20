@@ -20,6 +20,10 @@ export class MockDingTalkGateway implements DingTalkGateway {
     return { userId };
   }
 
+  async exchangeWebAuthCode(authCode: string): Promise<DingTalkIdentity> {
+    return this.exchangeAuthCode(authCode);
+  }
+
   async sendDirectReminder(
     input: DirectReminderInput,
   ): Promise<ReminderDelivery> {
@@ -27,4 +31,3 @@ export class MockDingTalkGateway implements DingTalkGateway {
     return { requestId: `mock-reminder-${this.sentReminders.length}` };
   }
 }
-

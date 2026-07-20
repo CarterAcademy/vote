@@ -51,6 +51,37 @@ DINGTALK_MOCK_ENABLED=true
 
 如需用本地 PostgreSQL 做持久化联调，设置 `DATABASE_URL` 后另行执行 `npm run db:migrate`；只有明确需要演示数据时才运行 `npm run db:seed`，不要对生产数据库执行 seed。
 
+如需在本地钉钉客户端联调真实免登，可保持 `DATABASE_URL` 为空并关闭 mock，应用会创建一个不含演示投票的内存数据库，并将指定的真实钉钉账号初始化为 HR 管理员：
+
+```dotenv
+DINGTALK_MOCK_ENABLED=false
+DINGTALK_DEV_ADMIN_USER_ID=<通讯录中的稳定 userId>
+DINGTALK_DEV_ADMIN_NAME=<姓名>
+DINGTALK_DEV_ADMIN_DEPARTMENT=<部门，可选>
+```
+
+同时配置真实的 `DINGTALK_CORP_ID`、`DINGTALK_CLIENT_ID` 和 `DINGTALK_CLIENT_SECRET`。该管理员配置仅用于无 `DATABASE_URL` 的本地内存联调；重启开发进程后业务数据会重置，生产授权仍应使用 `db:provision` 写入 PostgreSQL。
+
+### Chrome + 服务器真实数据联调
+
+桌面 Chrome 使用钉钉 OAuth 授权码登录。先在钉钉开发者后台为应用申请个人权限 `Contact.User.Read`，并在安全设置中登记精确回调地址：
+
+```text
+http://<本机局域网IP>:3001/api/auth/dingtalk/web/callback
+```
+
+然后运行：
+
+```bash
+LOCAL_BIND_HOST=<本机局域网IP> npm run dev:remote-real
+```
+
+该命令把当前源码同步到 `10.1.131.51` 的隔离开发目录，在服务器上读取 `/srv/committee-vote/app.env` 并启动仅监听服务器回环地址的开发进程，再通过 SSH 把它转发到本机局域网地址的 3001 端口。使用局域网地址是为了允许钉钉授权页返回 Chrome；该 HTTP 例外只在本命令显式启用，正式部署仍要求 HTTPS。`DATABASE_URL` 和其他生产秘密始终留在服务器上，不会写入本机环境文件或命令输出。
+
+此模式会连接真实数据库，投票、关闭场次、修改委员等操作会影响真实记录。命令结束时会同时关闭 SSH 隧道和服务器端开发进程。
+
+若 Chrome 的安全策略阻止钉钉从公网授权页跳回私有地址，浏览器仍会在地址栏保留包含一次性 `authCode` 和 `state` 的回调地址。复制该完整地址，返回登录页并粘贴到“钉钉授权回调地址”，即可通过同源 POST 和原 CSRF state Cookie 完成登录。授权码不应发送到其它服务或写入日志。
+
 常用检查：
 
 ```bash

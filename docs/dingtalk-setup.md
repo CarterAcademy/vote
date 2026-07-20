@@ -14,7 +14,9 @@
 
 - `DINGTALK_APP_BASE_URL` 必须是用户实际访问的公网 HTTPS origin，不带密钥，通常不带末尾路径，例如 `https://vote.example.com`。
 - 将同一正式域名按当前控制台要求配置到“应用首页/回调域名/授权域名/JSAPI 安全域名”等相关位置。后台没有的字段不要自行新增；后台要求的字段不要遗漏。
-- 如控制台要求回调 URL，必须填写应用实际实现的精确 URL。当前 H5 登录方案由前端取得临时 `authCode`，再调用本服务 `POST /api/auth/dingtalk`；不要凭空配置一个未实现的浏览器回调路由。
+- H5 登录由前端取得临时 `authCode`，再调用本服务 `POST /api/auth/dingtalk`。
+- 桌面浏览器登录使用钉钉 OAuth 授权码流程，控制台必须登记与 `DINGTALK_WEB_REDIRECT_URI` 完全一致的地址。服务器回调路由为 `GET /api/auth/dingtalk/web/callback`。SSH 真实数据联调可临时使用本机私有局域网地址，并由启动脚本显式开启 `DINGTALK_WEB_ALLOW_INSECURE_REDIRECT=true`；其它非 HTTPS 地址会被拒绝。
+- 浏览器登录需要个人委托权限 `Contact.User.Read`。授权范围包含 `openid corpid`；服务端会校验所选组织，并将 `unionId` 换成企业内 `userId` 后再匹配系统名单。
 - 证书必须由受信 CA 签发且链完整；禁止生产使用自签名证书。反向代理需保留正确的 `Host` 和 `X-Forwarded-Proto=https`。
 - 不要把 localhost、临时隧道域名或测试域名留在生产白名单。测试应用与生产应用应分开。
 

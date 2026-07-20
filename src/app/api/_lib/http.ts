@@ -15,11 +15,20 @@ export function assertSameOrigin(request: NextRequest) {
   }
 
   const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin) {
-    throw Object.assign(new Error("请求来源不受信任"), {
-      status: 403,
-      code: "UNTRUSTED_ORIGIN",
-    });
+  if (origin) {
+    const requestHost = request.headers.get("host");
+    let originHost: string | null = null;
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      originHost = null;
+    }
+    if (!requestHost || originHost !== requestHost) {
+      throw Object.assign(new Error("请求来源不受信任"), {
+        status: 403,
+        code: "UNTRUSTED_ORIGIN",
+      });
+    }
   }
 }
 

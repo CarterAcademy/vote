@@ -22,6 +22,29 @@ interface UserInfoResponse {
   };
 }
 
+interface UserAccessTokenResponse {
+  accessToken?: string;
+  corpId?: string;
+  code?: string;
+  message?: string;
+}
+
+interface DelegatedUserInfoResponse {
+  nick?: string;
+  unionId?: string;
+  openId?: string;
+  code?: string;
+  message?: string;
+}
+
+interface UserByUnionIdResponse {
+  errcode?: number;
+  errmsg?: string;
+  result?: {
+    userid?: string;
+  };
+}
+
 interface RobotResponse {
   processQueryKey?: string;
   code?: string;
@@ -37,6 +60,7 @@ interface CachedToken {
 export interface RealDingTalkOptions {
   appKey: string;
   appSecret: string;
+  corpId?: string;
   robotCode?: string;
   apiBaseUrl?: string;
   legacyApiBaseUrl?: string;
@@ -46,6 +70,7 @@ export interface RealDingTalkOptions {
 export class RealDingTalkGateway implements DingTalkGateway {
   private readonly appKey: string;
   private readonly appSecret: string;
+  private readonly corpId?: string;
   private readonly robotCode: string;
   private readonly apiBaseUrl: string;
   private readonly legacyApiBaseUrl: string;
@@ -55,6 +80,7 @@ export class RealDingTalkGateway implements DingTalkGateway {
   constructor(options: RealDingTalkOptions) {
     this.appKey = options.appKey;
     this.appSecret = options.appSecret;
+    this.corpId = options.corpId;
     this.robotCode = options.robotCode ?? options.appKey;
     this.apiBaseUrl = options.apiBaseUrl ?? "https://api.dingtalk.com";
     this.legacyApiBaseUrl =
@@ -84,6 +110,73 @@ export class RealDingTalkGateway implements DingTalkGateway {
       userId: payload.result.userid,
       name: payload.result.name,
       unionId: payload.result.unionid,
+    };
+  }
+
+  async exchangeWebAuthCode(authCode: string): Promise<DingTalkIdentity> {
+    const tokenResponse = await this.fetchImpl(
+      `${this.apiBaseUrl}/v1.0/oauth2/userAccessToken`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          clientId: this.appKey,
+          clientSecret: this.appSecret,
+          code: authCode,
+          grantType: "authorization_code",
+        }),
+        cache: "no-store",
+      },
+    );
+    const tokenPayload = (await tokenResponse.json()) as UserAccessTokenResponse;
+    if (!tokenResponse.ok || !tokenPayload.accessToken) {
+      throw new Error(
+        `DingTalk user-token exchange failed: ${tokenPayload.message ?? tokenResponse.statusText}`,
+      );
+    }
+    if (this.corpId && tokenPayload.corpId && tokenPayload.corpId !== this.corpId) {
+      throw new Error("DingTalk login selected an unexpected organization");
+    }
+
+    const profileResponse = await this.fetchImpl(
+      `${this.apiBaseUrl}/v1.0/contact/users/me`,
+      {
+        method: "GET",
+        headers: {
+          "content-type": "application/json",
+          "x-acs-dingtalk-access-token": tokenPayload.accessToken,
+        },
+        cache: "no-store",
+      },
+    );
+    const profile = (await profileResponse.json()) as DelegatedUserInfoResponse;
+    if (!profileResponse.ok || !profile.unionId) {
+      throw new Error(
+        `DingTalk delegated user lookup failed: ${profile.message ?? profileResponse.statusText}`,
+      );
+    }
+
+    const appToken = await this.getAccessToken();
+    const userResponse = await this.fetchImpl(
+      `${this.legacyApiBaseUrl}/topapi/user/getbyunionid?access_token=${encodeURIComponent(appToken)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ unionid: profile.unionId }),
+        cache: "no-store",
+      },
+    );
+    const userPayload = (await userResponse.json()) as UserByUnionIdResponse;
+    if (!userResponse.ok || userPayload.errcode !== 0 || !userPayload.result?.userid) {
+      throw new Error(
+        `DingTalk union-id exchange failed: ${userPayload.errmsg ?? userResponse.statusText}`,
+      );
+    }
+
+    return {
+      userId: userPayload.result.userid,
+      name: profile.nick,
+      unionId: profile.unionId,
     };
   }
 
@@ -156,4 +249,3 @@ export class RealDingTalkGateway implements DingTalkGateway {
     return this.cachedToken.value;
   }
 }
-

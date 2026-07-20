@@ -120,6 +120,12 @@ export const api = {
       body: JSON.stringify({ authCode }),
     }),
 
+  dingtalkWebComplete: (authCode: string, state: string) =>
+    apiRequest<SessionPayload>("/api/auth/dingtalk/web/complete", {
+      method: "POST",
+      body: JSON.stringify({ authCode, state }),
+    }),
+
   logout: () => apiRequest<{ success: boolean }>("/api/logout", { method: "POST" }),
 
   committees: () =>

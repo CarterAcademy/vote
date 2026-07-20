@@ -41,6 +41,7 @@ export function getDingTalkGateway(): DingTalkGateway {
     singleton = new RealDingTalkGateway({
       appKey,
       appSecret,
+      corpId: process.env.DINGTALK_CORP_ID?.trim(),
       robotCode: process.env.DINGTALK_ROBOT_CODE?.trim(),
     });
   }

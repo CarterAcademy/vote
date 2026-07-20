@@ -55,3 +55,13 @@
   gap: 10px;
 }
 
+.manualLogin {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--app-border);
+}
+
+.manualLogin p {
+  font-size: 13px;
+}

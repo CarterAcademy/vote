@@ -17,6 +17,6 @@ export interface ReminderDelivery {
 
 export interface DingTalkGateway {
   exchangeAuthCode(authCode: string): Promise<DingTalkIdentity>;
+  exchangeWebAuthCode(authCode: string): Promise<DingTalkIdentity>;
   sendDirectReminder(input: DirectReminderInput): Promise<ReminderDelivery>;
 }
-
