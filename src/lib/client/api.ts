@@ -3,6 +3,7 @@ import type {
   ApiEnvelope,
   Committee,
   CommitteeMember,
+  DirectoryPage,
   Initiator,
   MemberPollDetail,
   PollSummary,
@@ -138,6 +139,11 @@ export const api = {
     apiRequest<{ items: CommitteeMember[] }>(`/api/committees/${committeeId}/members`).then(
       (result) => result.items,
     ),
+
+  dingtalkDirectory: (departmentId: string, cursor = 0) => {
+    const params = new URLSearchParams({ departmentId, cursor: String(cursor) });
+    return apiRequest<DirectoryPage>(`/api/dingtalk/directory?${params.toString()}`);
+  },
 
   addCommitteeMember: async (
     committeeId: string,

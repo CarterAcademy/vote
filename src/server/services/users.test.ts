@@ -1,18 +1,28 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { closeDatabase, DEMO_IDS, ensureDatabaseReady } from "../db";
+import { closeDatabase, ensureDatabaseReady } from "../db";
 import { addInitiator, listInitiators, updateInitiator } from "./users";
 
 const actor = {
-  id: DEMO_IDS.hr,
-  dingtalkUserId: "dt_demo_hr_01",
-  name: "何雨晴",
+  id: "00000000-0000-4000-8000-000000000099",
+  dingtalkUserId: "dt_test_hr_01",
+  name: "测试发起人",
   role: "HR" as const,
 };
 
 describe("initiator management", () => {
   beforeAll(async () => {
-    await ensureDatabaseReady();
+    const db = await ensureDatabaseReady();
+    await db
+      .insertInto("users")
+      .values({
+        id: actor.id,
+        dingtalk_user_id: actor.dingtalkUserId,
+        name: actor.name,
+        department: "测试部门",
+        role: actor.role,
+      })
+      .execute();
   });
 
   afterAll(async () => {

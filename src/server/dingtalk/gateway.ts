@@ -15,8 +15,32 @@ export interface ReminderDelivery {
   requestId?: string;
 }
 
+export interface DingTalkDirectoryDepartment {
+  id: string;
+  name: string;
+  parentId?: string;
+}
+
+export interface DingTalkDirectoryUser {
+  userId: string;
+  name: string;
+  title?: string;
+}
+
+export interface DingTalkDirectoryPage {
+  departments: DingTalkDirectoryDepartment[];
+  users: DingTalkDirectoryUser[];
+  hasMore: boolean;
+  nextCursor?: number;
+}
+
 export interface DingTalkGateway {
   exchangeAuthCode(authCode: string): Promise<DingTalkIdentity>;
   exchangeWebAuthCode(authCode: string): Promise<DingTalkIdentity>;
+  listDirectory(
+    departmentId: number,
+    cursor?: number,
+    size?: number,
+  ): Promise<DingTalkDirectoryPage>;
   sendDirectReminder(input: DirectReminderInput): Promise<ReminderDelivery>;
 }

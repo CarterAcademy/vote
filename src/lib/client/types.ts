@@ -38,6 +38,25 @@ export interface CommitteeMember {
   joinedAt: string;
 }
 
+export interface DirectoryDepartment {
+  id: string;
+  name: string;
+  parentId?: string;
+}
+
+export interface DirectoryUser {
+  userId: string;
+  name: string;
+  title?: string;
+}
+
+export interface DirectoryPage {
+  departments: DirectoryDepartment[];
+  users: DirectoryUser[];
+  hasMore: boolean;
+  nextCursor?: number;
+}
+
 export interface PollSummary {
   id: string;
   title: string;

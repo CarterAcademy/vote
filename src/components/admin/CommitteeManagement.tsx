@@ -22,12 +22,17 @@ import {
   PeopleCommunityRegular,
   PersonAddRegular,
 } from "@fluentui/react-icons";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { api, errorMessage } from "@/lib/client/api";
 import { useSession } from "@/lib/client/session";
-import type { Committee, CommitteeMember } from "@/lib/client/types";
+import type {
+  Committee,
+  CommitteeMember,
+  DirectoryDepartment,
+  DirectoryUser as ApiDirectoryUser,
+} from "@/lib/client/types";
 import styles from "./CommitteeManagement.module.css";
 
 interface DirectoryUser {
@@ -35,6 +40,13 @@ interface DirectoryUser {
   name: string;
   department: string;
 }
+
+interface DirectoryLocation {
+  id: string;
+  name: string;
+}
+
+const directoryRoot: DirectoryLocation = { id: "1", name: "企业通讯录" };
 
 const mockDirectory: DirectoryUser[] = [
   { dingtalkUserId: "dt_mock_directory_01", name: "郑博文", department: "前沿研究中心" },
@@ -72,6 +84,27 @@ export function CommitteeManagement({
   const [position, setPosition] = useState("委员");
   const [saving, setSaving] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<CommitteeMember | null>(null);
+  const [isInDingTalk, setIsInDingTalk] = useState(false);
+  const [directoryPath, setDirectoryPath] = useState<DirectoryLocation[]>([directoryRoot]);
+  const [directoryDepartments, setDirectoryDepartments] = useState<DirectoryDepartment[]>([]);
+  const [directoryUsers, setDirectoryUsers] = useState<DirectoryUser[]>([]);
+  const [directoryLoading, setDirectoryLoading] = useState(false);
+  const [directoryHasMore, setDirectoryHasMore] = useState(false);
+  const [directoryCursor, setDirectoryCursor] = useState<number | undefined>();
+  const [dialogError, setDialogError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mockMode) return;
+    let active = true;
+    void import("dingtalk-jsapi")
+      .then((dd) => {
+        if (active) setIsInDingTalk(dd.env.platform !== "notInDingTalk");
+      })
+      .catch(() => {
+        if (active) setIsInDingTalk(false);
+      });
+    return () => { active = false; };
+  }, [mockMode]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,31 +147,89 @@ export function CommitteeManagement({
         (!normalized || `${user.name}${user.department}`.toLowerCase().includes(normalized)),
     );
   }, [directoryQuery, members]);
+  const visibleDirectoryUsers = useMemo(() => {
+    const memberIds = new Set(members.map((member) => member.dingtalkUserId));
+    const normalized = directoryQuery.trim().toLowerCase();
+    return directoryUsers.filter(
+      (user) =>
+        !memberIds.has(user.dingtalkUserId) &&
+        (!normalized || `${user.name}${user.department}`.toLowerCase().includes(normalized)),
+    );
+  }, [directoryQuery, directoryUsers, members]);
+
+  const loadDirectory = useCallback(async (
+    location: DirectoryLocation,
+    cursor = 0,
+    append = false,
+  ) => {
+    setDirectoryLoading(true);
+    setDialogError(null);
+    try {
+      const page = await api.dingtalkDirectory(location.id, cursor);
+      const users = page.users.map((user: ApiDirectoryUser) => ({
+        dingtalkUserId: user.userId,
+        name: user.name,
+        department: location.name,
+      }));
+      setDirectoryDepartments(page.departments);
+      setDirectoryUsers((current) => append ? [...current, ...users] : users);
+      setDirectoryHasMore(page.hasMore);
+      setDirectoryCursor(page.nextCursor);
+    } catch (requestError) {
+      setDialogError(errorMessage(requestError));
+      if (!append) {
+        setDirectoryDepartments([]);
+        setDirectoryUsers([]);
+      }
+    } finally {
+      setDirectoryLoading(false);
+    }
+  }, []);
 
   function openAddDialog() {
     setSelectedUsers([]);
     setDirectoryQuery("");
     setPosition("委员");
     setNotice(null);
+    setDialogError(null);
+    setDirectoryPath([directoryRoot]);
+    setDirectoryDepartments([]);
+    setDirectoryUsers([]);
     setAddOpen(true);
+    if (!mockMode) void loadDirectory(directoryRoot);
   }
 
-  function toggleMockUser(user: DirectoryUser, checked: boolean) {
+  function toggleDirectoryUser(user: DirectoryUser, checked: boolean) {
     setSelectedUsers((current) =>
       checked
-        ? [...current, user]
+        ? current.length >= 30 || current.some((item) => item.dingtalkUserId === user.dingtalkUserId)
+          ? current
+          : [...current, user]
         : current.filter((item) => item.dingtalkUserId !== user.dingtalkUserId),
     );
   }
 
+  function enterDepartment(department: DirectoryDepartment) {
+    const location = { id: department.id, name: department.name };
+    setDirectoryPath((current) => [...current, location]);
+    setDirectoryQuery("");
+    void loadDirectory(location);
+  }
+
+  function returnToDirectory(index: number) {
+    const location = directoryPath[index];
+    if (!location) return;
+    setDirectoryPath((current) => current.slice(0, index + 1));
+    setDirectoryQuery("");
+    void loadDirectory(location);
+  }
+
   async function chooseFromDingTalk() {
-    setError(null);
+    setDialogError(null);
     try {
       if (!corpId) throw new Error("缺少钉钉企业 ID，请联系管理员检查配置");
       const dd = await import("dingtalk-jsapi");
-      if (dd.env.platform === "notInDingTalk") {
-        throw new Error("请在钉钉客户端内打开本页面后选择组织成员");
-      }
+      if (dd.env.platform === "notInDingTalk") throw new Error("当前浏览器无法使用钉钉客户端选择器");
       const raw = await dd.biz.contact.choose({
         corpId,
         multiple: true,
@@ -162,9 +253,16 @@ export function CommitteeManagement({
         }];
       });
       if (chosen.length === 0) throw new Error("未选择人员，或钉钉未返回有效的人员信息");
-      setSelectedUsers(chosen);
+      setSelectedUsers((current) => {
+        const combined = [...current];
+        for (const user of chosen) {
+          if (combined.length >= 30) break;
+          if (!combined.some((item) => item.dingtalkUserId === user.dingtalkUserId)) combined.push(user);
+        }
+        return combined;
+      });
     } catch (requestError) {
-      setError(errorMessage(requestError));
+      setDialogError(errorMessage(requestError));
     }
   }
 
@@ -195,7 +293,7 @@ export function CommitteeManagement({
       setAddOpen(false);
       setNotice(`已向${selectedCommittee.name}添加 ${added.length} 名委员`);
     } catch (requestError) {
-      setError(errorMessage(requestError));
+      setDialogError(errorMessage(requestError));
     } finally {
       setSaving(false);
     }
@@ -328,8 +426,13 @@ export function CommitteeManagement({
             <DialogTitle>向{selectedCommittee?.name}添加委员</DialogTitle>
             <DialogContent className={styles.dialogContent}>
               <p className={styles.dialogIntro}>
-                {mockMode ? "当前为演示环境，以下人员来自模拟的钉钉组织通讯录。" : "从钉钉企业通讯录选择人员，确认后加入委员会名单。"}
+                {mockMode ? "当前为演示环境，以下人员来自模拟的钉钉组织通讯录。" : "浏览钉钉企业组织架构选择人员，确认后加入委员会名单。"}
               </p>
+              {dialogError && (
+                <MessageBar intent="error">
+                  <MessageBarBody>{dialogError}</MessageBarBody>
+                </MessageBar>
+              )}
               {mockMode ? (
                 <>
                   <SearchBox value={directoryQuery} onChange={(_, data) => setDirectoryQuery(data.value)} placeholder="搜索组织成员" />
@@ -338,7 +441,7 @@ export function CommitteeManagement({
                       <label className={styles.directoryRow} key={user.dingtalkUserId}>
                         <Checkbox
                           checked={selectedUsers.some((item) => item.dingtalkUserId === user.dingtalkUserId)}
-                          onChange={(_, data) => toggleMockUser(user, data.checked === true)}
+                          onChange={(_, data) => toggleDirectoryUser(user, data.checked === true)}
                           aria-label={`选择${user.name}`}
                         />
                         <span className={styles.avatar}>{initials(user.name)}</span>
@@ -349,13 +452,77 @@ export function CommitteeManagement({
                   </div>
                 </>
               ) : (
-                <div className={styles.dingTalkPicker}>
-                  <PeopleCommunityRegular />
-                  <div><strong>钉钉企业通讯录</strong><p>支持按组织架构查找，一次最多选择 30 人。</p></div>
-                  <Button appearance="primary" onClick={() => void chooseFromDingTalk()}>打开通讯录</Button>
+                <div className={styles.browserDirectory}>
+                  <div className={styles.directoryToolbar}>
+                    <div className={styles.breadcrumbs} aria-label="通讯录位置">
+                      {directoryPath.map((location, index) => (
+                        <span key={location.id}>
+                          {index > 0 && <span className={styles.breadcrumbSeparator}>/</span>}
+                          <button
+                            type="button"
+                            onClick={() => returnToDirectory(index)}
+                            disabled={index === directoryPath.length - 1 || directoryLoading}
+                          >
+                            {location.name}
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    {isInDingTalk && (
+                      <Button appearance="secondary" size="small" onClick={() => void chooseFromDingTalk()}>
+                        使用钉钉选择器
+                      </Button>
+                    )}
+                  </div>
+                  <SearchBox
+                    value={directoryQuery}
+                    onChange={(_, data) => setDirectoryQuery(data.value)}
+                    placeholder="筛选当前部门人员"
+                    aria-label="筛选当前部门人员"
+                  />
+                  <div className={styles.directoryList} aria-busy={directoryLoading}>
+                    {directoryDepartments.map((department) => (
+                      <button
+                        type="button"
+                        className={styles.departmentRow}
+                        key={department.id}
+                        onClick={() => enterDepartment(department)}
+                        disabled={directoryLoading}
+                      >
+                        <PeopleCommunityRegular />
+                        <span><strong>{department.name}</strong><small>进入部门选择人员</small></span>
+                        <span aria-hidden="true">›</span>
+                      </button>
+                    ))}
+                    {visibleDirectoryUsers.map((user) => (
+                      <label className={styles.directoryRow} key={user.dingtalkUserId}>
+                        <Checkbox
+                          checked={selectedUsers.some((item) => item.dingtalkUserId === user.dingtalkUserId)}
+                          disabled={selectedUsers.length >= 30 && !selectedUsers.some((item) => item.dingtalkUserId === user.dingtalkUserId)}
+                          onChange={(_, data) => toggleDirectoryUser(user, data.checked === true)}
+                          aria-label={`选择${user.name}`}
+                        />
+                        <span className={styles.avatar}>{initials(user.name)}</span>
+                        <span><strong>{user.name}</strong><small>{user.department}</small></span>
+                      </label>
+                    ))}
+                    {directoryLoading && <div className={styles.directoryLoading}><Spinner size="small" label="正在读取通讯录" /></div>}
+                    {!directoryLoading && directoryDepartments.length === 0 && visibleDirectoryUsers.length === 0 && (
+                      <p className={styles.noDirectoryResult}>{directoryQuery ? "当前部门没有匹配人员" : "当前部门暂无可添加人员"}</p>
+                    )}
+                    {!directoryLoading && directoryHasMore && directoryCursor !== undefined && (
+                      <Button
+                        appearance="subtle"
+                        className={styles.loadMore}
+                        onClick={() => void loadDirectory(directoryPath.at(-1) ?? directoryRoot, directoryCursor, true)}
+                      >
+                        加载更多人员
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
-              {selectedUsers.length > 0 && <div className={styles.selectionSummary}>已选择 {selectedUsers.length} 人：{selectedUsers.map((user) => user.name).join("、")}</div>}
+              {selectedUsers.length > 0 && <div className={styles.selectionSummary}>已选择 {selectedUsers.length}/30 人：{selectedUsers.map((user) => user.name).join("、")}</div>}
               <Field label="委员职务" hint="本次选择的人员将使用同一职务，可添加后再调整。">
                 <Input value={position} onChange={(_, data) => setPosition(data.value)} maxLength={100} />
               </Field>

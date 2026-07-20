@@ -252,6 +252,100 @@
   background: var(--app-surface-muted);
 }
 
+.browserDirectory {
+  display: grid;
+  gap: 10px;
+}
+
+.directoryToolbar {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.breadcrumbs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  gap: 5px;
+}
+
+.breadcrumbs button {
+  padding: 2px 3px;
+  border: 0;
+  background: transparent;
+  color: var(--app-accent-strong);
+  cursor: pointer;
+  font: inherit;
+}
+
+.breadcrumbs button:disabled {
+  color: var(--app-text);
+  cursor: default;
+  font-weight: 650;
+}
+
+.breadcrumbSeparator {
+  margin-right: 5px;
+  color: var(--app-text-muted);
+}
+
+.departmentRow {
+  display: grid;
+  width: 100%;
+  align-items: center;
+  padding: 12px;
+  border: 0;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
+  cursor: pointer;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  text-align: left;
+}
+
+.departmentRow:hover {
+  background: var(--app-surface-muted);
+}
+
+.departmentRow > svg {
+  color: #1677ff;
+  font-size: 21px;
+}
+
+.departmentRow strong,
+.departmentRow small {
+  display: block;
+}
+
+.departmentRow small {
+  margin-top: 3px;
+  color: var(--app-text-muted);
+  font-size: 11px;
+}
+
+.departmentRow > span:last-child {
+  color: var(--app-text-muted);
+  font-size: 22px;
+}
+
+.directoryLoading {
+  display: grid;
+  min-height: 84px;
+  place-items: center;
+}
+
+.loadMore {
+  width: 100%;
+  border-radius: 0;
+}
+
 .noDirectoryResult {
   padding: 26px;
   margin: 0;
@@ -330,5 +424,10 @@
 
   .dingTalkPicker button {
     grid-column: 1 / -1;
+  }
+
+  .directoryToolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

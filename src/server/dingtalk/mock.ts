@@ -1,4 +1,5 @@
 import type {
+  DingTalkDirectoryPage,
   DingTalkGateway,
   DingTalkIdentity,
   DirectReminderInput,
@@ -22,6 +23,10 @@ export class MockDingTalkGateway implements DingTalkGateway {
 
   async exchangeWebAuthCode(authCode: string): Promise<DingTalkIdentity> {
     return this.exchangeAuthCode(authCode);
+  }
+
+  async listDirectory(): Promise<DingTalkDirectoryPage> {
+    return { departments: [], users: [], hasMore: false };
   }
 
   async sendDirectReminder(

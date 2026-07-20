@@ -91,3 +91,81 @@ describe("RealDingTalkGateway web login", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("RealDingTalkGateway directory", () => {
+  it("lists child departments and a page of department users", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({ accessToken: "app-token", expireIn: 7200 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          errcode: 0,
+          result: [{ dept_id: 42, name: "研发中心", parent_id: 1 }],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          errcode: 0,
+          result: {
+            has_more: true,
+            next_cursor: 100,
+            list: [{ userid: "user-1", name: "测试用户", title: "研究员" }],
+          },
+        }),
+      );
+    const gateway = new RealDingTalkGateway({
+      appKey: "client-id",
+      appSecret: "client-secret",
+      fetchImpl,
+    });
+
+    await expect(gateway.listDirectory(1)).resolves.toEqual({
+      departments: [{ id: "42", name: "研发中心", parentId: "1" }],
+      users: [{ userId: "user-1", name: "测试用户", title: "研究员" }],
+      hasMore: true,
+      nextCursor: 100,
+    });
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "https://oapi.dingtalk.com/topapi/v2/department/listsub?access_token=app-token",
+      expect.objectContaining({ body: JSON.stringify({ dept_id: 1 }) }),
+    );
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      3,
+      "https://oapi.dingtalk.com/topapi/v2/user/list?access_token=app-token",
+      expect.objectContaining({
+        body: JSON.stringify({
+          dept_id: 1,
+          cursor: 0,
+          size: 100,
+          contain_access_limit: false,
+        }),
+      }),
+    );
+  });
+
+  it("rejects unsuccessful directory responses", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({ accessToken: "app-token", expireIn: 7200 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ errcode: 60011, errmsg: "no permission", result: [] }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ errcode: 0, result: { has_more: false, list: [] } }),
+      );
+    const gateway = new RealDingTalkGateway({
+      appKey: "client-id",
+      appSecret: "client-secret",
+      fetchImpl,
+    });
+
+    await expect(gateway.listDirectory(1)).rejects.toThrow(
+      "DingTalk department lookup failed: no permission",
+    );
+  });
+});

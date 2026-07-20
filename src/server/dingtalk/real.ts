@@ -1,4 +1,5 @@
 import type {
+  DingTalkDirectoryPage,
   DingTalkGateway,
   DingTalkIdentity,
   DirectReminderInput,
@@ -50,6 +51,30 @@ interface RobotResponse {
   code?: string;
   message?: string;
   requestId?: string;
+}
+
+interface DepartmentListResponse {
+  errcode?: number;
+  errmsg?: string;
+  result?: Array<{
+    dept_id?: number;
+    name?: string;
+    parent_id?: number;
+  }>;
+}
+
+interface DepartmentUserListResponse {
+  errcode?: number;
+  errmsg?: string;
+  result?: {
+    has_more?: boolean;
+    next_cursor?: number;
+    list?: Array<{
+      userid?: string;
+      name?: string;
+      title?: string;
+    }>;
+  };
 }
 
 interface CachedToken {
@@ -177,6 +202,80 @@ export class RealDingTalkGateway implements DingTalkGateway {
       userId: userPayload.result.userid,
       name: profile.nick,
       unionId: profile.unionId,
+    };
+  }
+
+  async listDirectory(
+    departmentId: number,
+    cursor = 0,
+    size = 100,
+  ): Promise<DingTalkDirectoryPage> {
+    const token = await this.getAccessToken();
+    const query = `access_token=${encodeURIComponent(token)}`;
+    const [departmentResponse, userResponse] = await Promise.all([
+      this.fetchImpl(
+        `${this.legacyApiBaseUrl}/topapi/v2/department/listsub?${query}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ dept_id: departmentId }),
+          cache: "no-store",
+        },
+      ),
+      this.fetchImpl(
+        `${this.legacyApiBaseUrl}/topapi/v2/user/list?${query}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            dept_id: departmentId,
+            cursor,
+            size: Math.min(Math.max(size, 1), 100),
+            contain_access_limit: false,
+          }),
+          cache: "no-store",
+        },
+      ),
+    ]);
+    const departments = (await departmentResponse.json()) as DepartmentListResponse;
+    const users = (await userResponse.json()) as DepartmentUserListResponse;
+
+    if (!departmentResponse.ok || departments.errcode !== 0) {
+      throw new Error(
+        `DingTalk department lookup failed: ${departments.errmsg ?? departmentResponse.statusText}`,
+      );
+    }
+    if (!userResponse.ok || users.errcode !== 0) {
+      throw new Error(
+        `DingTalk department user lookup failed: ${users.errmsg ?? userResponse.statusText}`,
+      );
+    }
+
+    return {
+      departments: (departments.result ?? []).flatMap((department) =>
+        department.dept_id !== undefined && department.name
+          ? [{
+              id: String(department.dept_id),
+              name: department.name,
+              ...(department.parent_id === undefined
+                ? {}
+                : { parentId: String(department.parent_id) }),
+            }]
+          : [],
+      ),
+      users: (users.result?.list ?? []).flatMap((user) =>
+        user.userid && user.name
+          ? [{
+              userId: user.userid,
+              name: user.name,
+              ...(user.title ? { title: user.title } : {}),
+            }]
+          : [],
+      ),
+      hasMore: users.result?.has_more === true,
+      ...(users.result?.next_cursor === undefined
+        ? {}
+        : { nextCursor: users.result.next_cursor }),
     };
   }
 

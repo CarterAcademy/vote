@@ -14,3 +14,8 @@
 - Never run `npm run db:seed` in production.
 
 Do not report a deployment as successful until both the direct health check and nginx report URL checks pass.
+
+## Browser compatibility
+
+- Every feature must work in a standard browser outside the DingTalk client.
+- DingTalk JSAPI integrations may provide an enhanced in-client experience, but they must not be the only way to complete a workflow; provide a browser-compatible UI and server-backed fallback.

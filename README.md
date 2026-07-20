@@ -45,11 +45,11 @@ DATABASE_URL=
 DINGTALK_MOCK_ENABLED=true
 ```
 
-然后打开 [http://localhost:3000](http://localhost:3000)，从演示登录页选择 HR 或委员身份。没有 `DATABASE_URL` 时，应用会自动创建并填充内存演示数据库；重启开发进程后数据会重置。mock 模式只用于本机开发和演示，不得在公网或生产环境启用。
+然后打开 [http://localhost:3000](http://localhost:3000)，从演示登录页选择委员身份。没有 `DATABASE_URL` 时，应用会自动创建并填充演示委员和委员会名单；投票列表初始为空。重启开发进程后数据会重置。mock 模式只用于本机开发和演示，不得在公网或生产环境启用。
 
 调研摘要可在本地开发模式通过 [http://localhost:3000/investigation-summary.html](http://localhost:3000/investigation-summary.html) 查看。
 
-如需用本地 PostgreSQL 做持久化联调，设置 `DATABASE_URL` 后另行执行 `npm run db:migrate`；只有明确需要演示数据时才运行 `npm run db:seed`，不要对生产数据库执行 seed。
+如需用本地 PostgreSQL 做持久化联调，设置 `DATABASE_URL` 后另行执行 `npm run db:migrate`；只有明确需要演示身份和委员会名单时才运行 `npm run db:seed`，不要对生产数据库执行 seed。
 
 如需在本地钉钉客户端联调真实免登，可保持 `DATABASE_URL` 为空并关闭 mock，应用会创建一个不含演示投票的内存数据库，并将指定的真实钉钉账号初始化为 HR 管理员：
 
@@ -137,7 +137,7 @@ Compose 会先运行一次性迁移服务，迁移成功后才启动应用。应
 npm run db:provision -- --file /secure/path/organization.json --confirm
 ```
 
-真实名单文件按敏感配置管理，不提交仓库。生产环境不得执行 `npm run db:seed`；它只用于非生产演示数据。完整的宿主机和 Docker 操作见[部署与运维文档](docs/deployment-operations.md#3-生产组织初始化首次冷启动)。
+真实名单文件按敏感配置管理，不提交仓库。生产环境不得执行 `npm run db:seed`；它只用于非生产演示身份和委员会名单。完整的宿主机和 Docker 操作见[部署与运维文档](docs/deployment-operations.md#3-生产组织初始化首次冷启动)。
 
 ## 维护接口
 

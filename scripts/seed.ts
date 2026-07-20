@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   if (!isInMemoryDatabase()) {
     await seedDatabase(db);
   }
-  process.stdout.write("Demo committees, users, polls, and votes are ready.\n");
+  process.stdout.write("Demo committees and users are ready.\n");
 }
 
 main()
