@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createPollSchema, voteSchema } from "./index";
+import { addInitiatorSchema, createPollSchema, pollListQuerySchema, voteSchema } from "./index";
 
 describe("voteSchema", () => {
   it.each(["APPROVE", "REJECT"] as const)(
@@ -39,3 +39,20 @@ describe("createPollSchema", () => {
   });
 });
 
+describe("management validation", () => {
+  it("defaults poll listings to the current initiator", () => {
+    expect(pollListQuerySchema.parse({}).scope).toBe("OWN");
+  });
+
+  it("accepts a valid initiator identity", () => {
+    expect(addInitiatorSchema.parse({
+      dingtalkUserId: "dt_hr_02",
+      name: "林若安",
+      department: "人力资源部",
+    })).toEqual({
+      dingtalkUserId: "dt_hr_02",
+      name: "林若安",
+      department: "人力资源部",
+    });
+  });
+});

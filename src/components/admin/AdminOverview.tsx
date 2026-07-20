@@ -29,10 +29,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { formatCompactDate, isPast, localDateTimeInput, percent } from "@/lib/client/format";
-import type { Committee, PollListResponse, PollSummary } from "@/lib/client/types";
+import type { Committee, Initiator, PollDashboardStats, PollListResponse, PollSummary } from "@/lib/client/types";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { PollStatusBadge } from "@/components/StatusBadges";
+import { InitiatorManagement } from "./InitiatorManagement";
 import styles from "./AdminOverview.module.css";
 
 interface CreateForm {
@@ -59,9 +60,15 @@ const emptyForm: CreateForm = {
 export function AdminOverview({
   initialPolls,
   initialCommittees,
+  scope = "OWN",
+  initialInitiators,
+  initialDashboardStats,
 }: {
   initialPolls: PollListResponse;
   initialCommittees: Committee[];
+  scope?: "OWN" | "ALL";
+  initialInitiators?: Initiator[];
+  initialDashboardStats?: PollDashboardStats;
 }) {
   const router = useRouter();
   const [polls, setPolls] = useState<PollSummary[]>(initialPolls.items);
@@ -102,6 +109,7 @@ export function AdminOverview({
         to: toDate ? new Date(`${toDate}T23:59:59.999`).toISOString() : undefined,
         page,
         pageSize,
+        scope,
       });
       if (requestId !== requestSequence.current) return;
       setPolls(result.items);
@@ -115,7 +123,7 @@ export function AdminOverview({
       setLoading(false);
       setSearching(false);
     }
-  }, [dateRangeInvalid, fromDate, page, query, toDate]);
+  }, [dateRangeInvalid, fromDate, page, query, scope, toDate]);
 
   const loadCommittees = useCallback(async () => {
     setCommitteeError(null);
@@ -140,7 +148,7 @@ export function AdminOverview({
     return () => window.clearTimeout(timeout);
   }, [load, query]);
 
-  const stats = useMemo(() => {
+  const pageStats = useMemo(() => {
     const active = polls.filter((poll) => poll.status === "OPEN" && !isPast(poll.deadlineAt));
     const submitted = polls.reduce((sum, poll) => sum + (poll.submittedCount ?? 0), 0);
     const eligible = polls.reduce((sum, poll) => sum + (poll.totalVoters ?? 0), 0);
@@ -151,6 +159,7 @@ export function AdminOverview({
       turnout: eligible ? Math.round((submitted / eligible) * 1000) / 10 : 0,
     };
   }, [polls, total]);
+  const stats = initialDashboardStats ?? pageStats;
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const hasFilters = Boolean(query.trim() || fromDate || toDate);
@@ -200,8 +209,8 @@ export function AdminOverview({
       <div className={styles.page}>
         <header className={styles.pageHeader}>
           <div>
-            <h1>评审投票管理</h1>
-            <p>发起投票，掌握投票进度，并长期追溯评审记录。</p>
+            <h1>{scope === "ALL" ? "系统管理" : "评审投票管理"}</h1>
+            <p>{scope === "ALL" ? "维护发起人权限，查看全部投票与整体进度。" : "发起投票，掌握本人发起场次的进度，并长期追溯评审记录。"}</p>
           </div>
           <Button appearance="primary" icon={<AddRegular />} size="large" onClick={openCreateDialog} disabled={committees.length === 0}>
             发起投票
@@ -218,13 +227,16 @@ export function AdminOverview({
 
         {!loading && !displayError && (
           <>
+            {scope === "ALL" && initialInitiators && (
+              <InitiatorManagement initialInitiators={initialInitiators} />
+            )}
             <section className={styles.metrics} aria-label="投票概览">
               <div className={styles.metric}>
                 <span className={styles.metricLabel}> 进行中</span>
                 <span className={styles.metricValue}>{stats.active}</span>
               </div>
               <div className={styles.metric}>
-                <span className={styles.metricLabel}>记录总数</span>
+                <span className={styles.metricLabel}>{scope === "ALL" ? "全部记录" : "我的记录"}</span>
                 <span className={styles.metricValue}>{stats.total}</span>
               </div>
               <div className={styles.metric}>
@@ -304,6 +316,7 @@ export function AdminOverview({
                         <tr>
                           <th scope="col">投票</th>
                           <th scope="col">委员会</th>
+                          {scope === "ALL" && <th scope="col">发起人</th>}
                           <th scope="col">状态</th>
                           <th scope="col">投票进度</th>
                           <th scope="col">截止时间</th>
@@ -324,6 +337,7 @@ export function AdminOverview({
                                 </a>
                               </td>
                               <td>{poll.committeeName}</td>
+                              {scope === "ALL" && <td>{poll.createdByName}</td>}
                               <td><PollStatusBadge status={poll.status} deadlineAt={poll.deadlineAt} /></td>
                               <td>
                                 <div className={styles.turnout}>
@@ -356,6 +370,7 @@ export function AdminOverview({
                           <ProgressBar value={total ? submitted / total : 0} aria-label={`投票进度 ${submitted}/${total}`} />
                           <div className={styles.mobileMeta}>
                             <span>{poll.committeeName}</span>
+                            {scope === "ALL" && <span>发起人：{poll.createdByName}</span>}
                             <span>{submitted} / {total} 已投</span>
                           </div>
                           <Button as="a" href={`/admin/polls/${poll.id}`} appearance="secondary">查看详情</Button>

@@ -46,6 +46,7 @@ export interface PollSummary {
   status: PollStatus;
   deadlineAt: string;
   createdAt: string;
+  createdByName: string;
   submittedCount?: number;
   totalVoters?: number;
   hasVoted?: boolean;
@@ -57,6 +58,23 @@ export interface PollListResponse {
   page: number;
   pageSize: number;
   total: number;
+}
+
+export interface PollDashboardStats {
+  active: number;
+  total: number;
+  closed: number;
+  turnout: number;
+}
+
+export interface Initiator {
+  id: string;
+  dingtalkUserId: string;
+  name: string;
+  department: string | null;
+  isActive: boolean;
+  pollCount: number;
+  createdAt: string;
 }
 
 export interface Poll {

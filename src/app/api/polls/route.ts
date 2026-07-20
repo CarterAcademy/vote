@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       to: request.nextUrl.searchParams.get("to") ?? undefined,
       page: request.nextUrl.searchParams.get("page") ?? undefined,
       pageSize: request.nextUrl.searchParams.get("pageSize") ?? undefined,
+      scope: request.nextUrl.searchParams.get("scope") ?? undefined,
     });
     const result = await listPolls(query, actor);
     return ok(result);

@@ -60,6 +60,7 @@ export const pollListQuerySchema = z
     to: z.coerce.date().optional(),
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    scope: z.enum(["OWN", "ALL"]).default("OWN"),
   })
   .superRefine((value, context) => {
     if (value.from && value.to && value.to < value.from) {
@@ -84,9 +85,21 @@ export const addCommitteeMemberSchema = z.object({
   position: z.string().trim().max(100, "委员职务不能超过 100 个字符").nullish(),
 });
 
+export const addInitiatorSchema = z.object({
+  dingtalkUserId: nonBlank("钉钉用户 ID", 128),
+  name: nonBlank("姓名", 100),
+  department: z.string().trim().max(200, "部门不能超过 200 个字符").nullish(),
+});
+
+export const updateInitiatorSchema = z.object({
+  isActive: z.boolean(),
+});
+
 export type CreatePollInput = z.infer<typeof createPollSchema>;
 export type VoteInput = z.infer<typeof voteSchema>;
 export type PollListQuery = z.infer<typeof pollListQuerySchema>;
 export type DingTalkAuthInput = z.infer<typeof dingtalkAuthSchema>;
 
 export type AddCommitteeMemberInput = z.infer<typeof addCommitteeMemberSchema>;
+export type AddInitiatorInput = z.infer<typeof addInitiatorSchema>;
+export type UpdateInitiatorInput = z.infer<typeof updateInitiatorSchema>;

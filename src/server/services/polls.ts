@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { sql } from "kysely";
 import type { SessionUser } from "@/types";
 
 import {
@@ -52,6 +53,45 @@ export interface PollListResult {
   page: number;
   pageSize: number;
   total: number;
+}
+
+export interface PollDashboardStats {
+  active: number;
+  total: number;
+  closed: number;
+  turnout: number;
+}
+
+export async function getPollDashboardStats(
+  actor: SessionUser,
+  scope: "OWN" | "ALL" = "OWN",
+): Promise<PollDashboardStats> {
+  assertHr(actor);
+  const db = await ensureDatabaseReady();
+  let query = db
+    .selectFrom("polls")
+    .leftJoin("poll_voters", "poll_voters.poll_id", "polls.id")
+    .leftJoin("votes", "votes.poll_voter_id", "poll_voters.id")
+    .select([
+      sql<number>`count(distinct polls.id)`.as("total"),
+      sql<number>`count(distinct case when polls.status = 'OPEN' and polls.deadline_at > now() then polls.id end)`.as("active"),
+      sql<number>`count(distinct poll_voters.id)`.as("eligible"),
+      sql<number>`count(distinct votes.id)`.as("submitted"),
+    ]);
+  if (scope === "OWN") {
+    query = query.where("polls.created_by_user_id", "=", actor.id);
+  }
+  const row = await query.executeTakeFirstOrThrow();
+  const total = Number(row.total);
+  const active = Number(row.active);
+  const eligible = Number(row.eligible);
+  const submitted = Number(row.submitted);
+  return {
+    active,
+    total,
+    closed: total - active,
+    turnout: eligible ? Math.round((submitted / eligible) * 1000) / 10 : 0,
+  };
 }
 
 export interface HrVoterDto {
@@ -284,6 +324,9 @@ export async function listPolls(
       builder
         .innerJoin("poll_voters as eligibility", "eligibility.poll_id", "polls.id")
         .where("eligibility.user_id", "=", actor.id),
+    )
+    .$if(actor.role === "HR" && query.scope !== "ALL", (builder) =>
+      builder.where("polls.created_by_user_id", "=", actor.id),
     )
     .select([
       "polls.id",

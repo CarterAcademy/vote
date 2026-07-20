@@ -3,6 +3,7 @@ import type {
   ApiEnvelope,
   Committee,
   CommitteeMember,
+  Initiator,
   MemberPollDetail,
   PollSummary,
   PollListResponse,
@@ -160,6 +161,7 @@ export const api = {
     pageSize?: number;
     status?: "OPEN" | "CLOSED";
     committeeId?: string;
+    scope?: "OWN" | "ALL";
   }) => {
     const params = new URLSearchParams();
     if (query?.q) params.set("q", query.q);
@@ -169,6 +171,7 @@ export const api = {
     if (query?.pageSize) params.set("pageSize", String(query.pageSize));
     if (query?.status) params.set("status", query.status);
     if (query?.committeeId) params.set("committeeId", query.committeeId);
+    if (query?.scope) params.set("scope", query.scope);
     const suffix = params.size ? `?${params.toString()}` : "";
     return apiRequest<PollListResponse>(`/api/polls${suffix}`);
   },
@@ -182,6 +185,21 @@ export const api = {
     apiRequest<{ poll: PollSummary }>("/api/polls", {
       method: "POST",
       body: JSON.stringify(input),
+    }),
+
+  initiators: () =>
+    apiRequest<{ items: Initiator[] }>("/api/initiators").then((result) => result.items),
+
+  addInitiator: (input: { dingtalkUserId: string; name: string; department?: string | null }) =>
+    apiRequest<{ initiator: Initiator }>("/api/initiators", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  setInitiatorActive: (initiatorId: string, isActive: boolean) =>
+    apiRequest<{ initiator: Initiator }>(`/api/initiators/${initiatorId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
     }),
 
   adminPoll: (pollId: string) => apiRequest<AdminPollDetail>(`/api/polls/${pollId}`),
