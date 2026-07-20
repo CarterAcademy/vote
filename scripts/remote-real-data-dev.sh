@@ -6,7 +6,7 @@ PRODUCTION_HOST="${PRODUCTION_HOST:-ubuntu@10.1.131.51}"
 REMOTE_ROOT="${REMOTE_ROOT:-/srv/committee-vote}"
 REMOTE_WORKSPACE="${REMOTE_WORKSPACE:-${REMOTE_ROOT}/dev-workspace}"
 NODE_DIR="${NODE_DIR:-${REMOTE_ROOT}/runtime/node22/bin}"
-LOCAL_PORT="${LOCAL_PORT:-3001}"
+LOCAL_PORT="${LOCAL_PORT:-3011}"
 REMOTE_PORT="${REMOTE_PORT:-3100}"
 LOCAL_BIND_HOST="${LOCAL_BIND_HOST:-127.0.0.1}"
 
@@ -16,7 +16,7 @@ if [[ "${1:-}" != "--confirm-production-data" ]]; then
   exit 2
 fi
 
-for command_name in npm rsync ssh; do
+for command_name in node npm rsync ssh; do
   if ! command -v "${command_name}" >/dev/null 2>&1; then
     echo "Required command not found: ${command_name}" >&2
     exit 1
@@ -39,6 +39,29 @@ done
 
 if [[ ! "${LOCAL_BIND_HOST}" =~ ^[A-Za-z0-9.:-]+$ ]]; then
   echo "LOCAL_BIND_HOST contains unsupported characters." >&2
+  exit 1
+fi
+
+local_port_in_use=false
+if command -v lsof >/dev/null 2>&1 && \
+  lsof -nP -iTCP:"${LOCAL_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+  local_port_in_use=true
+elif ! node - "${LOCAL_BIND_HOST}" "${LOCAL_PORT}" <<'NODE'
+const net = require("node:net");
+const host = process.argv[2];
+const port = Number(process.argv[3]);
+const server = net.createServer();
+server.once("error", () => process.exit(1));
+server.listen({ host, port, exclusive: true }, () => {
+  server.close(() => process.exit(0));
+});
+NODE
+then
+  local_port_in_use=true
+fi
+
+if [[ "${local_port_in_use}" == true ]]; then
+  echo "Local address ${LOCAL_BIND_HOST}:${LOCAL_PORT} is already in use; choose a different LOCAL_PORT." >&2
   exit 1
 fi
 
@@ -91,12 +114,26 @@ cd "${remote_workspace}"
 if [[ -f "${pid_file}" ]]; then
   previous_pid="$(cat "${pid_file}")"
   if [[ "${previous_pid}" =~ ^[0-9]+$ ]] && kill -0 "${previous_pid}" 2>/dev/null; then
-    kill "${previous_pid}"
+    kill -- "-${previous_pid}" 2>/dev/null || kill "${previous_pid}"
     for _ in {1..20}; do
       kill -0 "${previous_pid}" 2>/dev/null || break
       sleep 0.25
     done
   fi
+fi
+
+if ! "${node_dir}/node" - "${remote_port}" <<'NODE'
+const net = require("node:net");
+const port = Number(process.argv[2]);
+const server = net.createServer();
+server.once("error", () => process.exit(1));
+server.listen({ host: "127.0.0.1", port, exclusive: true }, () => {
+  server.close(() => process.exit(0));
+});
+NODE
+then
+  echo "Remote port ${remote_port} is already owned by another process; refusing to reuse a stale development server." >&2
+  exit 1
 fi
 
 set -a
@@ -111,7 +148,8 @@ export DINGTALK_WEB_ALLOW_INSECURE_REDIRECT=true
 export DINGTALK_APP_BASE_URL="${redirect_uri%/api/auth/dingtalk/web/callback}"
 export NEXT_TELEMETRY_DISABLED=1
 
-nohup "${node_dir}/npm" run dev -- --hostname 127.0.0.1 --port "${remote_port}" \
+nohup setsid "${node_dir}/node" "${remote_workspace}/node_modules/next/dist/bin/next" \
+  dev --turbopack --hostname 127.0.0.1 --port "${remote_port}" \
   >"${log_file}" 2>&1 &
 dev_pid=$!
 printf '%s\n' "${dev_pid}" >"${pid_file}"
@@ -143,7 +181,7 @@ pid_file="${remote_workspace}/.remote-dev.pid"
 if [[ -f "${pid_file}" ]]; then
   dev_pid="$(cat "${pid_file}")"
   if [[ "${dev_pid}" =~ ^[0-9]+$ ]] && kill -0 "${dev_pid}" 2>/dev/null; then
-    kill "${dev_pid}"
+    kill -- "-${dev_pid}" 2>/dev/null || kill "${dev_pid}"
   fi
   rm -f "${pid_file}"
 fi

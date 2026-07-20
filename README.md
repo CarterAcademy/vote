@@ -67,16 +67,16 @@ DINGTALK_DEV_ADMIN_DEPARTMENT=<部门，可选>
 桌面 Chrome 使用钉钉 OAuth 授权码登录。先在钉钉开发者后台为应用申请个人权限 `Contact.User.Read`，并在安全设置中登记精确回调地址：
 
 ```text
-http://<本机局域网IP>:3001/api/auth/dingtalk/web/callback
+http://<本机局域网IP>:3011/api/auth/dingtalk/web/callback
 ```
 
-然后运行：
+然后运行（默认使用本机端口 `3011`，避免与其它开发项目常用的 `3001` 冲突）：
 
 ```bash
 LOCAL_BIND_HOST=<本机局域网IP> npm run dev:remote-real
 ```
 
-该命令把当前源码同步到 `10.1.131.51` 的隔离开发目录，在服务器上读取 `/srv/committee-vote/app.env` 并启动仅监听服务器回环地址的开发进程，再通过 SSH 把它转发到本机局域网地址的 3001 端口。使用局域网地址是为了允许钉钉授权页返回 Chrome；该 HTTP 例外只在本命令显式启用，正式部署仍要求 HTTPS。`DATABASE_URL` 和其他生产秘密始终留在服务器上，不会写入本机环境文件或命令输出。
+该命令把当前源码同步到 `10.1.131.51` 的隔离开发目录，在服务器上读取 `/srv/committee-vote/app.env` 并启动仅监听服务器回环地址的开发进程，再通过 SSH 把它转发到本机局域网地址的 3011 端口。启动前会先检查本机监听地址；若端口已被其它项目占用，会立即退出并提示设置其它 `LOCAL_PORT`。使用局域网地址是为了允许钉钉授权页返回 Chrome；该 HTTP 例外只在本命令显式启用，正式部署仍要求 HTTPS。`DATABASE_URL` 和其他生产秘密始终留在服务器上，不会写入本机环境文件或命令输出。
 
 此模式会连接真实数据库，投票、关闭场次、修改委员等操作会影响真实记录。命令结束时会同时关闭 SSH 隧道和服务器端开发进程。
 

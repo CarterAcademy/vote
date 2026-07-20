@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 
-const baseUrl = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3001";
+const baseUrl = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3011";
 const maintenanceSecret =
   process.env.E2E_MAINTENANCE_SECRET ?? "local-maintenance-secret-for-testing";
 

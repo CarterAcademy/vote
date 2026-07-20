@@ -54,7 +54,7 @@ describe("DingTalk web OAuth", () => {
   it("allows a private HTTP callback only with the development override", () => {
     process.env.DINGTALK_CLIENT_ID = "ding-client";
     process.env.DINGTALK_WEB_REDIRECT_URI =
-      "http://10.100.80.126:3001/api/auth/dingtalk/web/callback";
+      "http://10.100.80.126:3011/api/auth/dingtalk/web/callback";
 
     expect(() => buildDingTalkWebAuthorizationUrl("csrf-state")).toThrow(
       "must use HTTPS",
@@ -65,16 +65,16 @@ describe("DingTalk web OAuth", () => {
       buildDingTalkWebAuthorizationUrl("csrf-state").searchParams.get(
         "redirect_uri",
       ),
-    ).toBe("http://10.100.80.126:3001/api/auth/dingtalk/web/callback");
+    ).toBe("http://10.100.80.126:3011/api/auth/dingtalk/web/callback");
   });
 
   it("redirects back to the public callback origin after server-side development", () => {
     process.env.DINGTALK_WEB_REDIRECT_URI =
-      "http://10.100.80.126:3001/api/auth/dingtalk/web/callback";
+      "http://10.100.80.126:3011/api/auth/dingtalk/web/callback";
     process.env.DINGTALK_WEB_ALLOW_INSECURE_REDIRECT = "true";
 
     expect(buildDingTalkPostLoginUrl("/admin").toString()).toBe(
-      "http://10.100.80.126:3001/admin",
+      "http://10.100.80.126:3011/admin",
     );
   });
 

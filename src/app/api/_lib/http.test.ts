@@ -8,8 +8,8 @@ describe("assertSameOrigin", () => {
     const request = new NextRequest("http://127.0.0.1:3100/api/test", {
       method: "POST",
       headers: {
-        host: "10.100.80.126:3001",
-        origin: "http://10.100.80.126:3001",
+        host: "10.100.80.126:3011",
+        origin: "http://10.100.80.126:3011",
         "sec-fetch-site": "same-origin",
       },
     });
@@ -21,7 +21,7 @@ describe("assertSameOrigin", () => {
     const request = new NextRequest("http://127.0.0.1:3100/api/test", {
       method: "POST",
       headers: {
-        host: "10.100.80.126:3001",
+        host: "10.100.80.126:3011",
         origin: "https://attacker.example",
         "sec-fetch-site": "cross-site",
       },
