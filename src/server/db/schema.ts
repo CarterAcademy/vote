@@ -329,6 +329,71 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
     )
     .execute();
 
+  await db.schema
+    .createTable("intro_comment_visitors")
+    .ifNotExists()
+    .addColumn("id", "uuid", (column) => column.primaryKey())
+    .addColumn("ip_hash", "varchar(64)", (column) => column.notNull().unique())
+    .addColumn("nickname", "varchar(100)", (column) => column.notNull())
+    .addColumn("created_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .execute();
+
+  await db.schema
+    .createTable("intro_comments")
+    .ifNotExists()
+    .addColumn("id", "uuid", (column) => column.primaryKey())
+    .addColumn("author_user_id", "uuid", (column) =>
+      column.references("users.id").onDelete("set null"),
+    )
+    .addColumn("anonymous_visitor_id", "uuid", (column) =>
+      column.references("intro_comment_visitors.id").onDelete("restrict"),
+    )
+    .addColumn("content", "text", (column) => column.notNull())
+    .addColumn("created_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .addCheckConstraint(
+      "intro_comments_author_check",
+      sql`(author_user_id is not null and anonymous_visitor_id is null) or (author_user_id is null and anonymous_visitor_id is not null)`,
+    )
+    .addCheckConstraint(
+      "intro_comments_content_check",
+      sql`length(trim(content)) between 1 and 1000`,
+    )
+    .execute();
+
+  await db.schema
+    .createTable("experience_ratings")
+    .ifNotExists()
+    .addColumn("id", "uuid", (column) => column.primaryKey())
+    .addColumn("user_id", "uuid", (column) =>
+      column.notNull().references("users.id").onDelete("restrict"),
+    )
+    .addColumn("context", "varchar(20)", (column) => column.notNull())
+    .addColumn("outcome", "varchar(20)", (column) => column.notNull())
+    .addColumn("score", "integer")
+    .addColumn("tags", "jsonb", (column) =>
+      column.notNull().defaultTo(sql`'[]'::jsonb`),
+    )
+    .addColumn("created_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .addCheckConstraint(
+      "experience_ratings_context_check",
+      sql`context in ('MEMBER', 'ADMIN')`,
+    )
+    .addCheckConstraint(
+      "experience_ratings_outcome_check",
+      sql`outcome in ('RATED', 'DISMISSED')`,
+    )
+    .addCheckConstraint(
+      "experience_ratings_score_check",
+      sql`(outcome = 'RATED' and score between 1 and 5) or (outcome = 'DISMISSED' and score is null)`,
+    )
+    .execute();
+
   await Promise.all([
     db.schema
       .createIndex("polls_lookup_idx")
@@ -367,6 +432,18 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
       .on("reminder_logs")
       .columns(["poll_voter_id", "notification_type", "scheduled_for"])
       .where("notification_type", "!=", "MANUAL")
+      .execute(),
+    db.schema
+      .createIndex("intro_comments_created_idx")
+      .ifNotExists()
+      .on("intro_comments")
+      .column("created_at")
+      .execute(),
+    db.schema
+      .createIndex("experience_ratings_user_context_idx")
+      .ifNotExists()
+      .on("experience_ratings")
+      .columns(["user_id", "context", "created_at"])
       .execute(),
   ]);
 }

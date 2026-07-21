@@ -7,3 +7,5 @@ export * from "./stats";
 export * from "./users";
 export * from "./votes";
 export * from "./voice-recordings";
+export * from "./intro-comments";
+export * from "./experience-ratings";

@@ -93,6 +93,6 @@ describe("MemberVoteForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "确认提交" }));
 
     await waitFor(() => expect(voteMock).toHaveBeenCalledWith("poll-1", "APPROVE", "同意通过", []));
-    expect(pushMock).toHaveBeenCalledWith("/vote");
+    expect(pushMock).toHaveBeenCalledWith("/vote?completed=1");
   });
 });

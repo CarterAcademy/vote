@@ -10,6 +10,7 @@ import {
 import type { ReactNode } from "react";
 import { SessionProvider } from "@/lib/client/session";
 import type { SessionPayload } from "@/lib/client/types";
+import { IntroComments } from "./IntroComments";
 
 const brand: BrandVariants = {
   10: "#001713",
@@ -49,7 +50,10 @@ export function AppProvider({
   return (
     <SSRProvider>
       <FluentProvider theme={appTheme} style={{ minHeight: "100dvh" }}>
-        <SessionProvider initialSession={initialSession}>{children}</SessionProvider>
+        <SessionProvider initialSession={initialSession}>
+          {children}
+          <IntroComments />
+        </SessionProvider>
       </FluentProvider>
     </SSRProvider>
   );

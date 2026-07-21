@@ -93,7 +93,7 @@ export function MemberVoteForm({
       setSuccess(result.vote.version > 1 ? "投票已更新，修改记录已保存。" : "投票已提交。你可以在截止前回来修改。" );
       setAttempted(false);
       if (!isUpdate) {
-        router.push("/vote");
+        router.push("/vote?completed=1");
         return;
       }
       window.scrollTo({

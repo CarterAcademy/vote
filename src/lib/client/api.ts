@@ -4,7 +4,10 @@ import type {
   Committee,
   CommitteeMember,
   DirectoryPage,
+  ExperienceRatingContext,
+  ExperienceRatingStatus,
   Initiator,
+  IntroComment,
   MemberPollDetail,
   PollSummary,
   PollListResponse,
@@ -107,6 +110,36 @@ async function performRequest<T>(url: string, init?: ApiRequestOptions): Promise
   return (body as ApiEnvelope<T>).data;
 }
 
+async function downloadRequest(url: string): Promise<{ blob: Blob; fileName: string }> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+  } catch {
+    throw new ApiError(0, "NETWORK_ERROR", "无法连接服务，请检查网络后重试");
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const error = body?.error;
+    throw new ApiError(
+      response.status,
+      error?.code ?? "REQUEST_FAILED",
+      error?.message ?? "导出未完成，请稍后重试",
+      error?.details,
+    );
+  }
+
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  return {
+    blob: await response.blob(),
+    fileName: encodedName ? decodeURIComponent(encodedName) : "投票记录.xlsx",
+  };
+}
+
 export const api = {
   session: () => apiRequest<SessionPayload>("/api/session"),
 
@@ -132,6 +165,27 @@ export const api = {
 
   transcriptionCapability: () =>
     apiRequest<{ available: boolean }>("/api/transcribe"),
+
+  introComments: () =>
+    apiRequest<{ items: IntroComment[] }>("/api/intro-comments").then((result) => result.items),
+
+  createIntroComment: (content: string) =>
+    apiRequest<{ comment: IntroComment }>("/api/intro-comments", {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }).then((result) => result.comment),
+
+  experienceRatingStatus: (context: ExperienceRatingContext) =>
+    apiRequest<ExperienceRatingStatus>(`/api/experience-ratings?context=${context}`),
+
+  submitExperienceRating: (
+    context: ExperienceRatingContext,
+    input: { outcome: "RATED"; score: number; tags: string[] } | { outcome: "DISMISSED" },
+  ) =>
+    apiRequest<ExperienceRatingStatus>("/api/experience-ratings", {
+      method: "POST",
+      body: JSON.stringify({ context, ...input }),
+    }),
 
   uploadVoiceRecording: (pollId: string, audio: Blob) => {
     const body = new FormData();
@@ -295,6 +349,8 @@ export const api = {
       `/api/polls/${pollId}/close`,
       { method: "POST" },
     ),
+
+  exportPoll: (pollId: string) => downloadRequest(`/api/polls/${pollId}/export`),
 
   remind: (pollId: string) =>
     apiRequest<ReminderResponse>(`/api/polls/${pollId}/remind`, { method: "POST" }),

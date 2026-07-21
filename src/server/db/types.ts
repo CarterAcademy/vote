@@ -12,6 +12,8 @@ export type PollNotificationType =
   | "DEADLINE_24H"
   | "DEADLINE_3H";
 export type VoiceRecordingStatus = "DRAFT" | "SUBMITTED";
+export type ExperienceRatingContext = "MEMBER" | "ADMIN";
+export type ExperienceRatingOutcome = "RATED" | "DISMISSED";
 
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
 type GeneratedTimestamp = ColumnType<
@@ -161,6 +163,31 @@ export interface AuditLogTable {
   created_at: GeneratedTimestamp;
 }
 
+export interface IntroCommentVisitorTable {
+  id: string;
+  ip_hash: string;
+  nickname: string;
+  created_at: GeneratedTimestamp;
+}
+
+export interface IntroCommentTable {
+  id: string;
+  author_user_id: string | null;
+  anonymous_visitor_id: string | null;
+  content: string;
+  created_at: GeneratedTimestamp;
+}
+
+export interface ExperienceRatingTable {
+  id: string;
+  user_id: string;
+  context: ExperienceRatingContext;
+  outcome: ExperienceRatingOutcome;
+  score: number | null;
+  tags: ColumnType<string[], string[] | string, string[] | string>;
+  created_at: GeneratedTimestamp;
+}
+
 export interface DatabaseSchema {
   users: UserTable;
   committees: CommitteeTable;
@@ -173,4 +200,7 @@ export interface DatabaseSchema {
   vote_voice_recordings: VoteVoiceRecordingTable;
   reminder_logs: ReminderLogTable;
   audit_logs: AuditLogTable;
+  intro_comment_visitors: IntroCommentVisitorTable;
+  intro_comments: IntroCommentTable;
+  experience_ratings: ExperienceRatingTable;
 }

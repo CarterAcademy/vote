@@ -20,12 +20,12 @@ import { api, errorMessage } from "@/lib/client/api";
 import { useSession } from "@/lib/client/session";
 import styles from "./ProductLanding.module.css";
 
-type LoginMode = "checking" | "dingtalk" | "browser" | "error";
+type LoginMode = "authenticated" | "checking" | "dingtalk" | "browser" | "error";
 
 export function ProductLanding() {
   const router = useRouter();
-  const { corpId, setAuthenticatedUser } = useSession();
-  const [loginMode, setLoginMode] = useState<LoginMode>("checking");
+  const { user, corpId, setAuthenticatedUser } = useSession();
+  const [loginMode, setLoginMode] = useState<LoginMode>(user ? "authenticated" : "checking");
   const [loginError, setLoginError] = useState<string | null>(null);
   const attempted = useRef(false);
 
@@ -50,21 +50,29 @@ export function ProductLanding() {
       const session = await api.dingtalkLogin(result.code);
       if (!session.user) throw new Error("钉钉身份尚未绑定系统用户，请联系管理员。");
       setAuthenticatedUser(session.user);
-      router.replace(session.user.role === "HR" ? "/admin" : "/vote");
-      router.refresh();
+      setLoginMode("authenticated");
     } catch (authError) {
       setLoginMode("error");
       setLoginError(errorMessage(authError));
     }
-  }, [corpId, router, setAuthenticatedUser]);
+  }, [corpId, setAuthenticatedUser]);
 
   useEffect(() => {
+    if (user) {
+      attempted.current = true;
+      setLoginMode("authenticated");
+      return;
+    }
     if (attempted.current) return;
     attempted.current = true;
     void authenticateInDingTalk();
-  }, [authenticateInDingTalk]);
+  }, [authenticateInDingTalk, user]);
 
   function enterSystem() {
+    if (user) {
+      router.push(user.role === "HR" ? "/admin" : "/vote");
+      return;
+    }
     if (loginMode === "browser") {
       window.location.assign("/api/auth/dingtalk/web/start");
       return;
@@ -103,9 +111,15 @@ export function ProductLanding() {
               disabled={isChecking}
               className={styles.primaryAction}
             >
-              {isChecking ? "正在确认身份" : loginMode === "error" ? "重新验证" : "使用钉钉登录"}
+              {user
+                ? user.role === "HR" ? "进入管理端" : "进入我的投票"
+                : isChecking ? "正在确认身份" : loginMode === "error" ? "重新验证" : "使用钉钉登录"}
             </Button>
-            <span>{loginMode === "browser" ? "支持标准浏览器登录" : "钉钉内将自动完成身份验证"}</span>
+            <span>
+              {user
+                ? `已登录：${user.name}`
+                : loginMode === "browser" ? "支持标准浏览器登录" : "钉钉内将自动完成身份验证"}
+            </span>
           </div>
           {loginError && (
             <MessageBar intent="error" className={styles.loginMessage}>

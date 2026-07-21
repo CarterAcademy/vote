@@ -106,6 +106,8 @@ export function VoiceOpinionInput({
   recordings = [],
   onRecordingsChange,
   maxLength = 4000,
+  placeholder = "请输入客观、完整的评审意见",
+  ariaLabel = "详细评审意见",
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -113,6 +115,8 @@ export function VoiceOpinionInput({
   recordings?: VoiceRecording[];
   onRecordingsChange?: (recordings: VoiceRecording[]) => void;
   maxLength?: number;
+  placeholder?: string;
+  ariaLabel?: string;
 }) {
   const [mode, setMode] = useState<"text" | "voice">("text");
   const [speechSupported, setSpeechSupported] = useState<boolean | null>(null);
@@ -204,7 +208,7 @@ export function VoiceOpinionInput({
   }, [commitTranscript, onRecordingsChange, pollId, recordings]);
 
   const startListening = useCallback(async () => {
-    if (internalTranscriptionAvailable && mediaRecorderSupported()) {
+    if (pollId && internalTranscriptionAvailable && mediaRecorderSupported()) {
       voiceProviderRef.current = "internal";
       pendingMediaStopRef.current = false;
       setVoiceMessage(null);
@@ -401,9 +405,7 @@ export function VoiceOpinionInput({
     setMode("voice");
   }
 
-  const voiceInputAvailable = pollId
-    ? internalTranscriptionAvailable
-    : internalTranscriptionAvailable || speechSupported === true;
+  const voiceInputAvailable = pollId ? internalTranscriptionAvailable : speechSupported === true;
 
   return (
     <div className={styles.opinionComposer}>
@@ -413,10 +415,10 @@ export function VoiceOpinionInput({
             ref={textareaRef}
             value={value}
             onChange={(_, data) => onChange(data.value)}
-            placeholder="请输入客观、完整的评审意见"
+            placeholder={placeholder}
             resize="vertical"
             maxLength={maxLength}
-            aria-label="详细评审意见"
+            aria-label={ariaLabel}
           />
           {voiceInputAvailable && (
             <Button

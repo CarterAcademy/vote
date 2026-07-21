@@ -34,6 +34,7 @@ import { api, errorMessage } from "@/lib/client/api";
 import { choiceLabel, formatDateTime, isPast, percent } from "@/lib/client/format";
 import type { AdminPollDetail as Detail, AuditLog, ChoiceStat, VoteChoice } from "@/lib/client/types";
 import { AppShell } from "@/components/AppShell";
+import { ExperienceRatingPrompt } from "@/components/ExperienceRatingPrompt";
 import { ErrorState, PageLoading } from "@/components/PageState";
 import { ChoiceBadge, PollStatusBadge } from "@/components/StatusBadges";
 import styles from "./AdminPollDetail.module.css";
@@ -91,8 +92,10 @@ export function AdminPollDetail({
   const [tab, setTab] = useState<DetailTab>("overview");
   const [reminding, setReminding] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [closeDialog, setCloseDialog] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [ratingActivation, setRatingActivation] = useState<number | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
@@ -158,10 +161,34 @@ export function AdminPollDetail({
       setCloseDialog(false);
       setNotice({ intent: "success", title: "投票已关闭", message: "委员不能再提交或修改投票，当前统计已固定。" });
       await load(true);
+      setRatingActivation(Date.now());
     } catch (requestError) {
       setNotice({ intent: "error", title: "关闭失败", message: errorMessage(requestError) });
     } finally {
       setClosing(false);
+    }
+  }
+
+  async function exportPoll() {
+    setExporting(true);
+    setNotice(null);
+    try {
+      const exported = await api.exportPoll(pollId);
+      const url = URL.createObjectURL(exported.blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = exported.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      setNotice({ intent: "success", title: "导出完成", message: "Excel 文件已开始下载。" });
+      setRatingActivation(Date.now());
+      await load(true);
+    } catch (requestError) {
+      setNotice({ intent: "error", title: "导出失败", message: errorMessage(requestError) });
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -205,13 +232,12 @@ export function AdminPollDetail({
                   </Button>
                 </Tooltip>
                 <Button
-                  as="a"
-                  href={`/api/polls/${pollId}/export`}
                   appearance="secondary"
                   icon={<ArrowDownloadRegular />}
-                  download
+                  disabled={exporting}
+                  onClick={() => void exportPoll()}
                 >
-                  导出 Excel
+                  {exporting ? "正在导出" : "导出 Excel"}
                 </Button>
                 <Button
                   appearance="secondary"
@@ -232,6 +258,7 @@ export function AdminPollDetail({
                 </MessageBarBody>
               </MessageBar>
             )}
+            <ExperienceRatingPrompt context="ADMIN" activationKey={ratingActivation} />
 
             <div className={styles.syncBar}>
               <span className={styles.syncStatus}>

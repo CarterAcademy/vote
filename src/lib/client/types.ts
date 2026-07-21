@@ -213,3 +213,18 @@ export interface ApiErrorBody {
 export interface ApiEnvelope<T> {
   data: T;
 }
+
+export interface IntroComment {
+  id: string;
+  authorName: string;
+  anonymous: boolean;
+  content: string;
+  createdAt: string;
+}
+
+export type ExperienceRatingContext = "MEMBER" | "ADMIN";
+
+export interface ExperienceRatingStatus {
+  eligible: boolean;
+  cooldownDays: number;
+}

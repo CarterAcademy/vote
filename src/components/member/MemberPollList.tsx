@@ -17,6 +17,7 @@ import { api, errorMessage } from "@/lib/client/api";
 import { formatCompactDate, isPast } from "@/lib/client/format";
 import type { PollSummary } from "@/lib/client/types";
 import { AppShell } from "@/components/AppShell";
+import { ExperienceRatingPrompt } from "@/components/ExperienceRatingPrompt";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { PollStatusBadge } from "@/components/StatusBadges";
 import { PollAttachmentLinks } from "@/components/PollAttachmentLinks";
@@ -24,7 +25,13 @@ import styles from "./MemberPollList.module.css";
 
 type Filter = "pending" | "all";
 
-export function MemberPollList({ initialPolls }: { initialPolls: PollSummary[] }) {
+export function MemberPollList({
+  initialPolls,
+  completedNow = false,
+}: {
+  initialPolls: PollSummary[];
+  completedNow?: boolean;
+}) {
   const [polls, setPolls] = useState<PollSummary[]>(initialPolls);
   const [filter, setFilter] = useState<Filter>("pending");
   const [loading, setLoading] = useState(false);
@@ -73,6 +80,13 @@ export function MemberPollList({ initialPolls }: { initialPolls: PollSummary[] }
             <Tab value="pending">待投票 {pendingCount}</Tab>
             <Tab value="all">全部 {polls.length}</Tab>
           </TabList>
+        )}
+
+        {!loading && !error && (
+          <ExperienceRatingPrompt
+            context="MEMBER"
+            activationKey={completedNow && pendingCount === 0 ? 1 : null}
+          />
         )}
 
         {loading && <PageLoading label="正在加载投票任务" />}
