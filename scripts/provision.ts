@@ -49,11 +49,12 @@ const configSchema = z
         committee.members.map((person) => person.dingtalkUserId),
       ),
     ];
-    if (new Set(ids).size !== ids.length) {
+    const groups = [config.hr, ...config.committees.map((committee) => committee.members)];
+    if (groups.some((people) => new Set(people.map((person) => person.dingtalkUserId)).size !== people.length)) {
       context.addIssue({
         code: "custom",
         path: [],
-        message: "同一个钉钉用户不能在配置中重复出现",
+        message: "同一个钉钉用户不能在同一角色名单中重复出现",
       });
     }
     if (ids.some((id) => id.startsWith("replace-"))) {
@@ -135,7 +136,6 @@ async function main() {
             conflict.column("dingtalk_user_id").doUpdateSet({
               name: person.name,
               department: person.department ?? null,
-              role: "MEMBER",
               is_active: true,
               updated_at: new Date(),
             }),

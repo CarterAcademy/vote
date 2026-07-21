@@ -122,6 +122,26 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
     .execute();
 
   await db.schema
+    .createTable("poll_attachments")
+    .ifNotExists()
+    .addColumn("id", "uuid", (column) => column.primaryKey())
+    .addColumn("poll_id", "uuid", (column) =>
+      column.notNull().references("polls.id").onDelete("restrict"),
+    )
+    .addColumn("original_name", "varchar(255)", (column) => column.notNull())
+    .addColumn("stored_name", "varchar(100)", (column) => column.notNull().unique())
+    .addColumn("content_type", "varchar(150)", (column) => column.notNull())
+    .addColumn("size_bytes", "integer", (column) => column.notNull())
+    .addColumn("preview_text", "text")
+    .addColumn("display_order", "integer", (column) => column.notNull())
+    .addColumn("created_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .addUniqueConstraint("poll_attachments_poll_order_unique", ["poll_id", "display_order"])
+    .addCheckConstraint("poll_attachments_size_check", sql`size_bytes > 0`)
+    .execute();
+
+  await db.schema
     .createTable("votes")
     .ifNotExists()
     .addColumn("id", "uuid", (column) => column.primaryKey())
@@ -240,6 +260,12 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
       .ifNotExists()
       .on("poll_voters")
       .columns(["user_id", "poll_id"])
+      .execute(),
+    db.schema
+      .createIndex("poll_attachments_poll_idx")
+      .ifNotExists()
+      .on("poll_attachments")
+      .columns(["poll_id", "display_order"])
       .execute(),
     db.schema
       .createIndex("audit_logs_entity_idx")

@@ -108,6 +108,7 @@ DINGTALK_APP_BASE_URL=https://vote.example.com
 MAINTENANCE_SECRET=<独立的高强度随机值>
 BACKUP_DIR=/var/backups/committee-vote
 BACKUP_RETENTION_DAYS=<按单位制度填写，例如 3650>
+FILE_STORAGE_DIR=<私有持久化附件目录；宿主机发布脚本可省略>
 ```
 
 不要把 `.env*`、数据库口令、钉钉应用密钥或维护密钥提交到仓库。建议由部署平台的 Secret Manager 注入。完整步骤见[部署与运维文档](docs/deployment-operations.md)。

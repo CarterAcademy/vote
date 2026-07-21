@@ -60,7 +60,7 @@ export const pollListQuerySchema = z
     to: z.coerce.date().optional(),
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
-    scope: z.enum(["OWN", "ALL"]).default("OWN"),
+    scope: z.enum(["OWN", "ALL", "ELIGIBLE"]).default("OWN"),
   })
   .superRefine((value, context) => {
     if (value.from && value.to && value.to < value.from) {

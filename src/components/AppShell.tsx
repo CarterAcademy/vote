@@ -39,7 +39,12 @@ export function AppShell({ area, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, refresh, mockMode } = useSession();
-  const links = area === "admin" ? adminLinks : memberLinks;
+  const hasAdminAccess = user?.role === "HR";
+  const hasMemberAccess = user?.role === "MEMBER" || user?.isCommitteeMember;
+  const links = [
+    ...(hasAdminAccess ? adminLinks : []),
+    ...(hasMemberAccess ? memberLinks : []),
+  ];
 
   async function logout() {
     try {
@@ -65,7 +70,9 @@ export function AppShell({ area, children }: AppShellProps) {
             <span className={styles.brandText}>
               <span className={styles.brandTitle}>两委会评审投票</span>
               <span className={styles.brandContext}>
-                {area === "admin" ? "HR 管理端" : "委员端"}
+                {hasAdminAccess && hasMemberAccess
+                  ? "管理员 · 委员"
+                  : area === "admin" ? "HR 管理端" : "委员端"}
               </span>
             </span>
           </Link>

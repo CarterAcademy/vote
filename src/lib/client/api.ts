@@ -76,7 +76,7 @@ async function performRequest<T>(url: string, init?: ApiRequestOptions): Promise
   void dedupe;
   void memoryCacheMs;
   const headers = new Headers(requestInit.headers);
-  if (requestInit.body && !headers.has("Content-Type")) {
+  if (requestInit.body && !(requestInit.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -178,7 +178,7 @@ export const api = {
     pageSize?: number;
     status?: "OPEN" | "CLOSED";
     committeeId?: string;
-    scope?: "OWN" | "ALL";
+    scope?: "OWN" | "ALL" | "ELIGIBLE";
   }) => {
     const params = new URLSearchParams();
     if (query?.q) params.set("q", query.q);
@@ -198,11 +198,18 @@ export const api = {
     candidateName: string;
     committeeId: string;
     deadlineAt: string;
-  }) =>
-    apiRequest<{ poll: PollSummary }>("/api/polls", {
+  }, files: File[] = []) => {
+    const body = new FormData();
+    body.set("title", input.title);
+    body.set("candidateName", input.candidateName);
+    body.set("committeeId", input.committeeId);
+    body.set("deadlineAt", input.deadlineAt);
+    for (const file of files) body.append("files", file);
+    return apiRequest<{ poll: PollSummary }>("/api/polls", {
       method: "POST",
-      body: JSON.stringify(input),
-    }),
+      body,
+    });
+  },
 
   initiators: () =>
     apiRequest<{ items: Initiator[] }>("/api/initiators").then((result) => result.items),
@@ -221,7 +228,7 @@ export const api = {
 
   adminPoll: (pollId: string) => apiRequest<AdminPollDetail>(`/api/polls/${pollId}`),
 
-  memberPoll: (pollId: string) => apiRequest<MemberPollDetail>(`/api/polls/${pollId}`),
+  memberPoll: (pollId: string) => apiRequest<MemberPollDetail>(`/api/polls/${pollId}?view=member`),
 
   vote: (pollId: string, choice: VoteChoice, opinion: string) =>
     apiRequest<{ vote: VoteRecord }>(`/api/polls/${pollId}/vote`, {

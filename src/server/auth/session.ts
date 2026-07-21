@@ -97,11 +97,19 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     .executeTakeFirst();
   if (!currentUser) return null;
 
+  const committeeMembership = await db
+    .selectFrom("committee_members")
+    .select("id")
+    .where("user_id", "=", currentUser.id)
+    .where("is_active", "=", true)
+    .executeTakeFirst();
+
   return {
     id: currentUser.id,
     dingtalkUserId: currentUser.dingtalk_user_id,
     name: currentUser.name,
     role: currentUser.role,
+    isCommitteeMember: currentUser.role === "MEMBER" || Boolean(committeeMembership),
   };
 });
 

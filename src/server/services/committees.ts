@@ -123,7 +123,6 @@ export async function addCommitteeMember(
         .set({
           name: parsed.name,
           department: parsed.department?.trim() || user.department,
-          role: "MEMBER",
           is_active: true,
           updated_at: new Date(),
         })

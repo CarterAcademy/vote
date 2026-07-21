@@ -7,6 +7,7 @@ export interface SessionUser {
   dingtalkUserId: string;
   name: string;
   role: Role;
+  isCommitteeMember?: boolean;
 }
 
 export interface DemoUser extends SessionUser {
@@ -70,6 +71,14 @@ export interface PollSummary {
   totalVoters?: number;
   hasVoted?: boolean;
   updatedAt?: string | null;
+  attachments: PollAttachment[];
+}
+
+export interface PollAttachment {
+  id: string;
+  name: string;
+  contentType: string;
+  sizeBytes: number;
 }
 
 export interface PollListResponse {
@@ -108,6 +117,7 @@ export interface Poll {
   createdByName?: string;
   closedAt?: string | null;
   closeReason?: string | null;
+  attachments: PollAttachment[];
 }
 
 export interface VoteRecord {

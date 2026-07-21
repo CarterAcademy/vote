@@ -39,6 +39,7 @@ services:
       DINGTALK_ROBOT_CODE: ${DINGTALK_ROBOT_CODE:-}
       DINGTALK_APP_BASE_URL: ${DINGTALK_APP_BASE_URL:?DINGTALK_APP_BASE_URL is required}
       MAINTENANCE_SECRET: ${MAINTENANCE_SECRET:?MAINTENANCE_SECRET is required}
+      FILE_STORAGE_DIR: /app/uploads
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     depends_on:
@@ -59,6 +60,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
+    volumes:
+      - vote_uploads:/app/uploads
     networks:
       - frontend
       - backend
@@ -101,6 +104,7 @@ services:
 volumes:
   vote_db:
   vote_backups:
+  vote_uploads:
 
 networks:
   frontend:

@@ -44,6 +44,7 @@ COPYFILE_DISABLE=1 rsync --archive --compress \
   --exclude '.git/' \
   --exclude '.next/' \
   --exclude 'node_modules/' \
+  --exclude 'uploads/' \
   --exclude '.DS_Store' \
   --exclude '._*' \
   --exclude '.env' \
@@ -99,6 +100,8 @@ rollback() {
 trap rollback EXIT
 
 cd "${remote_release}"
+install -d -m 0750 "${remote_root}/uploads"
+ln -s "${remote_root}/uploads" "${remote_release}/uploads"
 "${node_dir}/npm" ci
 "${node_dir}/npm" run build
 
@@ -113,6 +116,9 @@ source "${env_file}"
 set +a
 BACKUP_DIR="${remote_root}/backups" \
   "${node_dir}/node" "${current_link}/scripts/backup-db.mjs"
+
+echo "Applying database migrations..."
+"${node_dir}/npm" run db:migrate
 
 ln -sfn "${remote_release}" "${current_link}.next"
 mv -Tf "${current_link}.next" "${current_link}"

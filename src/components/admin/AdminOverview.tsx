@@ -33,6 +33,7 @@ import type { Committee, Initiator, PollDashboardStats, PollListResponse, PollSu
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { PollStatusBadge } from "@/components/StatusBadges";
+import { PollAttachmentLinks } from "@/components/PollAttachmentLinks";
 import { InitiatorManagement } from "./InitiatorManagement";
 import styles from "./AdminOverview.module.css";
 
@@ -85,11 +86,14 @@ export function AdminOverview({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<CreateForm>({ ...emptyForm, deadlineAt: defaultDeadline() });
   const [formError, setFormError] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const loadedOnce = useRef(true);
   const skipInitialPollLoad = useRef(true);
   const requestSequence = useRef(0);
+  const fileInput = useRef<HTMLInputElement>(null);
   const pageSize = 20;
   const dateRangeInvalid = Boolean(fromDate && toDate && fromDate > toDate);
 
@@ -180,7 +184,29 @@ export function AdminOverview({
     });
     setAttempted(false);
     setFormError(null);
+    setFiles([]);
+    setFileError(null);
+    if (fileInput.current) fileInput.current.value = "";
     setDialogOpen(true);
+  }
+
+  function selectFiles(selected: File[]) {
+    if (selected.length > 5) {
+      setFileError("每场投票最多上传 5 个附件");
+      return;
+    }
+    const unsupported = selected.find((file) => !/\.(pdf|docx?)$/i.test(file.name));
+    if (unsupported) {
+      setFileError(`${unsupported.name} 不是支持的 PDF、DOC 或 DOCX 文件`);
+      return;
+    }
+    const oversized = selected.find((file) => file.size > 10 * 1024 * 1024);
+    if (oversized) {
+      setFileError(`${oversized.name} 超过 10 MB 大小限制`);
+      return;
+    }
+    setFiles(selected);
+    setFileError(null);
   }
 
   async function createPoll() {
@@ -194,7 +220,7 @@ export function AdminOverview({
         title: form.title.trim(),
         committeeId: form.committeeId,
         deadlineAt: new Date(form.deadlineAt).toISOString(),
-      });
+      }, files);
       setDialogOpen(false);
       router.push(`/admin/polls/${result.poll.id}`);
     } catch (requestError) {
@@ -315,6 +341,7 @@ export function AdminOverview({
                       <thead>
                         <tr>
                           <th scope="col">投票</th>
+                          <th scope="col">附件</th>
                           <th scope="col">委员会</th>
                           {scope === "ALL" && <th scope="col">发起人</th>}
                           <th scope="col">状态</th>
@@ -336,6 +363,7 @@ export function AdminOverview({
                                   <span>人选：{poll.candidateName}</span>
                                 </a>
                               </td>
+                              <td><PollAttachmentLinks pollId={poll.id} attachments={poll.attachments} /></td>
                               <td>{poll.committeeName}</td>
                               {scope === "ALL" && <td>{poll.createdByName}</td>}
                               <td><PollStatusBadge status={poll.status} deadlineAt={poll.deadlineAt} /></td>
@@ -367,6 +395,7 @@ export function AdminOverview({
                             </a>
                             <PollStatusBadge status={poll.status} deadlineAt={poll.deadlineAt} />
                           </div>
+                          <PollAttachmentLinks pollId={poll.id} attachments={poll.attachments} emptyLabel="无附件" />
                           <ProgressBar value={total ? submitted / total : 0} aria-label={`投票进度 ${submitted}/${total}`} />
                           <div className={styles.mobileMeta}>
                             <span>{poll.committeeName}</span>
@@ -446,6 +475,43 @@ export function AdminOverview({
                     placeholder="例如：2026 年度学术委员会人选评审"
                     maxLength={120}
                   />
+                </Field>
+                <Field
+                  label="附件（可选）"
+                  hint="最多 5 个文件；仅支持 PDF、DOC、DOCX，每个不超过 10 MB。"
+                  validationState={fileError ? "error" : "none"}
+                  validationMessage={fileError ?? undefined}
+                >
+                  <input
+                    ref={fileInput}
+                    className={styles.fileInput}
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    disabled={submitting}
+                    onChange={(event) => selectFiles(Array.from(event.currentTarget.files ?? []))}
+                  />
+                  {files.length > 0 && (
+                    <ul className={styles.selectedFiles} aria-label="已选择附件">
+                      {files.map((file, index) => (
+                        <li key={`${file.name}-${file.lastModified}-${index}`}>
+                          <span title={file.name}>{file.name}</span>
+                          <button
+                            type="button"
+                            aria-label={`移除 ${file.name}`}
+                            onClick={() => {
+                              const next = files.filter((_, fileIndex) => fileIndex !== index);
+                              setFiles(next);
+                              setFileError(null);
+                              if (fileInput.current) fileInput.current.value = "";
+                            }}
+                          >
+                            <DismissRegular />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </Field>
                 <Field
                   label="评审委员会"

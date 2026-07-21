@@ -64,6 +64,18 @@ export interface PollTable {
   updated_at: GeneratedTimestamp;
 }
 
+export interface PollAttachmentTable {
+  id: string;
+  poll_id: string;
+  original_name: string;
+  stored_name: string;
+  content_type: string;
+  size_bytes: number;
+  preview_text: string | null;
+  display_order: number;
+  created_at: GeneratedTimestamp;
+}
+
 export interface PollVoterTable {
   id: string;
   poll_id: string;
@@ -130,6 +142,7 @@ export interface DatabaseSchema {
   committees: CommitteeTable;
   committee_members: CommitteeMemberTable;
   polls: PollTable;
+  poll_attachments: PollAttachmentTable;
   poll_voters: PollVoterTable;
   votes: VoteTable;
   vote_revisions: VoteRevisionTable;

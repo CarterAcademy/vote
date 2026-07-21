@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "我的投票" };
 export default async function VoteListPage() {
   const user = await getSessionUser();
   if (!user) redirect("/");
-  if (user.role !== "MEMBER") redirect("/admin");
-  const polls = await listPolls({ pageSize: 100 }, user);
+  if (user.role !== "MEMBER" && !user.isCommitteeMember) redirect("/admin");
+  const polls = await listPolls({ pageSize: 100, scope: "ELIGIBLE" }, user);
   return <MemberPollList initialPolls={polls.items} />;
 }

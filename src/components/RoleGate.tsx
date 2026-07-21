@@ -13,12 +13,15 @@ export function RoleGate({ role, children }: { role: Role; children: ReactNode }
   useEffect(() => {
     if (loading || error) return;
     if (!user) router.replace("/");
-    else if (user.role !== role) router.replace(user.role === "HR" ? "/admin" : "/vote");
+    else if (role === "HR" ? user.role !== "HR" : user.role !== "MEMBER" && !user.isCommitteeMember) {
+      router.replace(user.role === "HR" ? "/admin" : "/vote");
+    }
   }, [error, loading, role, router, user]);
 
   if (error) {
     return <ErrorState description={error} onRetry={() => void refresh()} />;
   }
-  if (loading || !user || user.role !== role) return <PageLoading label="正在检查访问权限" />;
+  const permitted = user && (role === "HR" ? user.role === "HR" : user.role === "MEMBER" || user.isCommitteeMember);
+  if (loading || !permitted) return <PageLoading label="正在检查访问权限" />;
   return children;
 }

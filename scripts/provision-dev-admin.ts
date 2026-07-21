@@ -37,12 +37,6 @@ async function main(): Promise<void> {
       .where("dingtalk_user_id", "=", input.dingtalkUserId)
       .executeTakeFirst();
 
-    if (existing?.role === "MEMBER") {
-      throw new Error(
-        "The configured DingTalk account is already a committee member; refusing to change it to HR automatically.",
-      );
-    }
-
     const userId = existing?.id ?? randomUUID();
     if (existing) {
       await trx
@@ -50,6 +44,7 @@ async function main(): Promise<void> {
         .set({
           name: input.name,
           department: input.department,
+          role: "HR",
           is_active: true,
           updated_at: new Date(),
         })

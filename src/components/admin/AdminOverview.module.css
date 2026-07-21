@@ -214,6 +214,79 @@
   max-width: 100%;
 }
 
+.fileInput {
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 4px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+}
+
+.fileInput::file-selector-button {
+  margin-right: 10px;
+  padding: 5px 11px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 4px;
+  background: var(--app-surface-muted);
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.fileInput:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+
+.selectedFiles {
+  display: grid;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  gap: 5px;
+}
+
+.selectedFiles li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 5px;
+  background: var(--app-surface-muted);
+  color: var(--app-text);
+  font-size: 12px;
+  gap: 8px;
+}
+
+.selectedFiles span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectedFiles button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+}
+
+.selectedFiles button:hover {
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+
 .dialogIntro {
   max-width: 58ch;
   margin: 2px 0 4px;

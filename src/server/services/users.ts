@@ -120,10 +120,7 @@ export async function addInitiator(
       .where("dingtalk_user_id", "=", parsed.dingtalkUserId)
       .executeTakeFirst();
 
-    if (existing?.role === "MEMBER") {
-      throw new DomainError("CONFLICT", "该钉钉账号已是委员，不能直接改为发起人");
-    }
-    if (existing?.is_active) {
+    if (existing?.role === "HR" && existing.is_active) {
       throw new DomainError("CONFLICT", "该发起人已存在");
     }
 
@@ -134,6 +131,7 @@ export async function addInitiator(
         .set({
           name: parsed.name,
           department: parsed.department?.trim() || null,
+          role: "HR",
           is_active: true,
           updated_at: new Date(),
         })
@@ -224,12 +222,14 @@ function toSessionUser(row: {
   dingtalk_user_id: string;
   name: string;
   role: "HR" | "MEMBER";
+  committee_name?: string | null;
 }): SessionUser {
   return {
     id: row.id,
     dingtalkUserId: row.dingtalk_user_id,
     name: row.name,
     role: row.role,
+    isCommitteeMember: row.role === "MEMBER" || Boolean(row.committee_name),
   };
 }
 
@@ -237,9 +237,15 @@ export async function getUserById(userId: string): Promise<SessionUser | null> {
   const db = await ensureDatabaseReady();
   const row = await db
     .selectFrom("users")
-    .select(["id", "dingtalk_user_id", "name", "role"])
-    .where("id", "=", userId)
-    .where("is_active", "=", true)
+    .leftJoin("committee_members", (join) =>
+      join
+        .onRef("committee_members.user_id", "=", "users.id")
+        .on("committee_members.is_active", "=", true),
+    )
+    .leftJoin("committees", "committees.id", "committee_members.committee_id")
+    .select(["users.id", "users.dingtalk_user_id", "users.name", "users.role", "committees.name as committee_name"])
+    .where("users.id", "=", userId)
+    .where("users.is_active", "=", true)
     .executeTakeFirst();
 
   return row ? toSessionUser(row) : null;
@@ -251,9 +257,15 @@ export async function getUserByDingTalkUserId(
   const db = await ensureDatabaseReady();
   const row = await db
     .selectFrom("users")
-    .select(["id", "dingtalk_user_id", "name", "role"])
-    .where("dingtalk_user_id", "=", dingtalkUserId)
-    .where("is_active", "=", true)
+    .leftJoin("committee_members", (join) =>
+      join
+        .onRef("committee_members.user_id", "=", "users.id")
+        .on("committee_members.is_active", "=", true),
+    )
+    .leftJoin("committees", "committees.id", "committee_members.committee_id")
+    .select(["users.id", "users.dingtalk_user_id", "users.name", "users.role", "committees.name as committee_name"])
+    .where("users.dingtalk_user_id", "=", dingtalkUserId)
+    .where("users.is_active", "=", true)
     .executeTakeFirst();
 
   return row ? toSessionUser(row) : null;

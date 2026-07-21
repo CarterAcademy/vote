@@ -19,6 +19,7 @@ import type { PollSummary } from "@/lib/client/types";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { PollStatusBadge } from "@/components/StatusBadges";
+import { PollAttachmentLinks } from "@/components/PollAttachmentLinks";
 import styles from "./MemberPollList.module.css";
 
 type Filter = "pending" | "all";
@@ -33,7 +34,7 @@ export function MemberPollList({ initialPolls }: { initialPolls: PollSummary[] }
     setLoading(true);
     setError(null);
     try {
-      const result = await api.polls({ pageSize: 100 });
+      const result = await api.polls({ pageSize: 100, scope: "ELIGIBLE" });
       setPolls(result.items);
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -101,6 +102,12 @@ export function MemberPollList({ initialPolls }: { initialPolls: PollSummary[] }
                       <PollStatusBadge status={poll.status} deadlineAt={poll.deadlineAt} />
                     </div>
                     <p className={styles.candidate}>评审人选：<strong>{poll.candidateName}</strong></p>
+                    {poll.attachments.length > 0 && (
+                      <div className={styles.attachments}>
+                        <span>评审材料</span>
+                        <PollAttachmentLinks pollId={poll.id} attachments={poll.attachments} />
+                      </div>
+                    )}
                     <div className={styles.meta}>
                       <span>{poll.committeeName}</span>
                       <span className={styles.metaItem}>

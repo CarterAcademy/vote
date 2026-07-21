@@ -45,7 +45,7 @@ npm start
 
 1. 将 `config/organization.example.json` 复制到仓库之外的权限受控路径，例如 `/etc/committee-vote/organization.json`。
 2. 填入真实钉钉稳定 userId、姓名、部门和职务。不能把手机号、昵称或示例占位符当 userId。
-3. 由 HR 和钉钉管理员双人复核：至少 1 名 HR、`ACADEMIC` 恰好 10 人、`TECHNICAL` 恰好 9 人，所有 userId 唯一。
+3. 由 HR 和钉钉管理员双人复核：至少 1 名 HR、`ACADEMIC` 恰好 10 人、`TECHNICAL` 恰好 9 人，同一角色名单内的 userId 唯一；同一人可同时配置为 HR 和委员会成员。
 4. 确认 `DATABASE_URL` 指向目标生产库，再显式增加 `--confirm` 执行。
 
 宿主机方式：
@@ -85,7 +85,10 @@ DINGTALK_CLIENT_SECRET=<实际值>
 DINGTALK_ROBOT_CODE=<按实际能力填写>
 DINGTALK_APP_BASE_URL=https://<正式域名>
 BACKUP_RETENTION_DAYS=3650
+FILE_STORAGE_DIR=/app/uploads
 ```
+
+投票附件保存在应用服务器的私有持久化目录中，不应由 nginx 或静态文件目录直接暴露。Compose 使用 `vote_uploads` 命名卷；宿主机发布脚本使用 `/srv/committee-vote/uploads`，并把每个 release 的 `uploads` 链接到该目录。附件目录需要纳入与数据库一致的备份、恢复和访问控制流程。
 
 首次部署或升级：
 

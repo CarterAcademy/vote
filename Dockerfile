@@ -26,6 +26,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Keep the source report in docs/ while publishing it as a static production
 # asset. Next's standalone server serves files from ./public at their root URL.
 COPY --from=builder --chown=nextjs:nodejs /app/docs/investigation-summary.html ./public/investigation-summary.html
+RUN install -d -o nextjs -g nodejs -m 0750 /app/uploads
 
 USER nextjs
 EXPOSE 3000

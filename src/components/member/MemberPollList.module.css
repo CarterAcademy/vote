@@ -88,6 +88,21 @@
   font-weight: 650;
 }
 
+.attachments {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  margin: -2px 0 11px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  gap: 10px;
+}
+
+.attachments > span {
+  flex: 0 0 auto;
+  padding-top: 1px;
+}
+
 .meta {
   display: flex;
   align-items: center;
@@ -160,4 +175,3 @@
     width: 100%;
   }
 }
-

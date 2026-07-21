@@ -18,6 +18,19 @@ import {
 import { assertHr, optionalIso, toIso, writeAuditLog } from "./common";
 import { DomainError } from "./errors";
 import { calculateVoteStats, type PollStats } from "./stats";
+import type { PreparedPollAttachment } from "../files/attachments";
+
+export interface PollAttachmentDto {
+  id: string;
+  name: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+export interface PollAttachmentRecord extends PollAttachmentDto {
+  storedName: string;
+  previewText: string | null;
+}
 
 export interface CommitteeDto {
   id: string;
@@ -40,6 +53,7 @@ export interface PollDto {
   createdByName: string;
   createdAt: string;
   canEdit: boolean;
+  attachments: PollAttachmentDto[];
 }
 
 export interface PollListItem extends PollDto {
@@ -168,6 +182,7 @@ function mapPoll(
     created_at: Date;
   },
   now = new Date(),
+  attachments: PollAttachmentDto[] = [],
 ): PollDto {
   const status = effectiveStatus(row.status, row.deadline_at, now);
   return {
@@ -184,7 +199,32 @@ function mapPoll(
     createdByName: row.created_by_name,
     createdAt: toIso(row.created_at),
     canEdit: status === "OPEN" && new Date(row.deadline_at) > now,
+    attachments,
   };
+}
+
+async function listPollAttachments(pollIds: string[]): Promise<Map<string, PollAttachmentDto[]>> {
+  const byPoll = new Map<string, PollAttachmentDto[]>();
+  if (pollIds.length === 0) return byPoll;
+  const db = await ensureDatabaseReady();
+  const rows = await db
+    .selectFrom("poll_attachments")
+    .select(["id", "poll_id", "original_name", "content_type", "size_bytes"])
+    .where("poll_id", "in", pollIds)
+    .orderBy("poll_id", "asc")
+    .orderBy("display_order", "asc")
+    .execute();
+  for (const row of rows) {
+    const attachments = byPoll.get(row.poll_id) ?? [];
+    attachments.push({
+      id: row.id,
+      name: row.original_name,
+      contentType: row.content_type,
+      sizeBytes: Number(row.size_bytes),
+    });
+    byPoll.set(row.poll_id, attachments);
+  }
+  return byPoll;
 }
 
 export async function listCommittees(): Promise<CommitteeDto[]> {
@@ -218,6 +258,7 @@ export async function listCommittees(): Promise<CommitteeDto[]> {
 export async function createPoll(
   input: CreatePollInput | unknown,
   actor: SessionUser,
+  attachments: PreparedPollAttachment[] = [],
 ): Promise<PollDto> {
   assertHr(actor);
   const parsed = createPollSchema.parse(input);
@@ -225,7 +266,7 @@ export async function createPoll(
   const pollId = randomUUID();
   const startsAt = parsed.startsAt ?? new Date();
 
-  await db.transaction().execute(async (transaction) => {
+  const row = await db.transaction().execute(async (transaction) => {
     const committee = await transaction
       .selectFrom("committees")
       .select(["id", "name"])
@@ -272,6 +313,22 @@ export async function createPoll(
       })
       .execute();
 
+    if (attachments.length > 0) {
+      await transaction
+        .insertInto("poll_attachments")
+        .values(attachments.map((attachment) => ({
+          id: attachment.id,
+          poll_id: pollId,
+          original_name: attachment.originalName,
+          stored_name: attachment.storedName,
+          content_type: attachment.contentType,
+          size_bytes: attachment.sizeBytes,
+          preview_text: attachment.previewText,
+          display_order: attachment.displayOrder,
+        })))
+        .execute();
+    }
+
     await transaction
       .insertInto("poll_voters")
       .values(
@@ -300,13 +357,38 @@ export async function createPoll(
         candidateName: parsed.candidateName,
         deadlineAt: parsed.deadlineAt.toISOString(),
         voterCount: members.length,
+        attachments: attachments.map((attachment) => attachment.originalName),
       },
     });
+
+    return transaction
+      .selectFrom("polls")
+      .innerJoin("committees", "committees.id", "polls.committee_id")
+      .innerJoin("users as creators", "creators.id", "polls.created_by_user_id")
+      .select([
+        "polls.id",
+        "polls.committee_id",
+        "committees.name as committee_name",
+        "polls.title",
+        "polls.candidate_name",
+        "polls.status",
+        "polls.starts_at",
+        "polls.deadline_at",
+        "polls.closed_at",
+        "polls.close_reason",
+        "creators.name as created_by_name",
+        "polls.created_at",
+      ])
+      .where("polls.id", "=", pollId)
+      .executeTakeFirstOrThrow();
   });
 
-  const row = await getBasePoll(pollId);
-  if (!row) throw new DomainError("NOT_FOUND", "投票不存在");
-  return mapPoll(row);
+  return mapPoll(row, new Date(), attachments.map((attachment) => ({
+    id: attachment.id,
+    name: attachment.originalName,
+    contentType: attachment.contentType,
+    sizeBytes: attachment.sizeBytes,
+  })));
 }
 
 export async function listPolls(
@@ -320,12 +402,12 @@ export async function listPolls(
     .selectFrom("polls")
     .innerJoin("committees", "committees.id", "polls.committee_id")
     .innerJoin("users as creators", "creators.id", "polls.created_by_user_id")
-    .$if(actor.role === "MEMBER", (builder) =>
+    .$if(actor.role === "MEMBER" || query.scope === "ELIGIBLE", (builder) =>
       builder
         .innerJoin("poll_voters as eligibility", "eligibility.poll_id", "polls.id")
         .where("eligibility.user_id", "=", actor.id),
     )
-    .$if(actor.role === "HR" && query.scope !== "ALL", (builder) =>
+    .$if(actor.role === "HR" && query.scope === "OWN", (builder) =>
       builder.where("polls.created_by_user_id", "=", actor.id),
     )
     .select([
@@ -370,8 +452,11 @@ export async function listPolls(
     .execute();
   const pollIds = rows.map((row) => row.id);
 
-  const items: PollListItem[] = rows.map((row) => mapPoll(row));
-  if (pollIds.length > 0 && actor.role === "HR") {
+  const attachmentsByPoll = await listPollAttachments(pollIds);
+  const items: PollListItem[] = rows.map((row) =>
+    mapPoll(row, new Date(), attachmentsByPoll.get(row.id) ?? []),
+  );
+  if (pollIds.length > 0 && actor.role === "HR" && query.scope !== "ELIGIBLE") {
     const counts = await db
       .selectFrom("poll_voters")
       .leftJoin("votes", "votes.poll_voter_id", "poll_voters.id")
@@ -454,7 +539,8 @@ export async function getPollDetail(
   const db = await ensureDatabaseReady();
   const row = await getBasePoll(pollId);
   if (!row) throw new DomainError("NOT_FOUND", "投票不存在");
-  const poll = mapPoll(row);
+  const attachmentsByPoll = await listPollAttachments([pollId]);
+  const poll = mapPoll(row, new Date(), attachmentsByPoll.get(pollId) ?? []);
 
   if (actor.role === "MEMBER") {
     const voter = await db
@@ -559,6 +645,51 @@ export async function getPollDetail(
       createdAt: toIso(audit.created_at),
       details: audit.details,
     })),
+  };
+}
+
+/** Return the caller's own ballot view, including for HR users who are also voters. */
+export async function getMemberPollDetail(
+  pollId: string,
+  actor: SessionUser,
+): Promise<MemberPollDetail> {
+  return getPollDetail(pollId, { ...actor, role: "MEMBER" });
+}
+
+export async function getPollAttachment(
+  pollId: string,
+  attachmentId: string,
+  actor: SessionUser,
+): Promise<PollAttachmentRecord> {
+  const db = await ensureDatabaseReady();
+  const query = db
+    .selectFrom("poll_attachments")
+    .innerJoin("polls", "polls.id", "poll_attachments.poll_id")
+    .$if(actor.role === "MEMBER", (builder) =>
+      builder
+        .innerJoin("poll_voters", "poll_voters.poll_id", "polls.id")
+        .where("poll_voters.user_id", "=", actor.id),
+    )
+    .select([
+      "poll_attachments.id",
+      "poll_attachments.original_name",
+      "poll_attachments.stored_name",
+      "poll_attachments.content_type",
+      "poll_attachments.size_bytes",
+      "poll_attachments.preview_text",
+    ])
+    .where("poll_attachments.poll_id", "=", pollId)
+    .where("poll_attachments.id", "=", attachmentId);
+
+  const row = await query.executeTakeFirst();
+  if (!row) throw new DomainError("NOT_FOUND", "附件不存在或无权访问");
+  return {
+    id: row.id,
+    name: row.original_name,
+    storedName: row.stored_name,
+    contentType: row.content_type,
+    sizeBytes: Number(row.size_bytes),
+    previewText: row.preview_text,
   };
 }
 
