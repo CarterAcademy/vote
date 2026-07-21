@@ -37,6 +37,11 @@ export interface DingTalkDirectoryPage {
 export interface DingTalkGateway {
   exchangeAuthCode(authCode: string): Promise<DingTalkIdentity>;
   exchangeWebAuthCode(authCode: string): Promise<DingTalkIdentity>;
+  searchDirectoryUsers(
+    queryWord: string,
+    offset?: number,
+    size?: number,
+  ): Promise<DingTalkDirectoryPage>;
   listDirectory(
     departmentId: number,
     cursor?: number,

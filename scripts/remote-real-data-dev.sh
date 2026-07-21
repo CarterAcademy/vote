@@ -70,19 +70,24 @@ redirect_uri="http://${LOCAL_BIND_HOST}:${LOCAL_PORT}/api/auth/dingtalk/web/call
 echo "Checking the local source before upload..."
 npm run typecheck
 
+sync_source() {
+  COPYFILE_DISABLE=1 rsync --archive --compress --delete \
+    --exclude '.git/' \
+    --exclude '.next/' \
+    --exclude 'node_modules/' \
+    --exclude '.DS_Store' \
+    --exclude '._*' \
+    --exclude '.env' \
+    --exclude '.env.*' \
+    --exclude '*.log' \
+    --exclude '.remote-dev.pid' \
+    --exclude 'tsconfig.tsbuildinfo' \
+    ./ "${PRODUCTION_HOST}:${REMOTE_WORKSPACE}/"
+}
+
 echo "Syncing source to the isolated server-side development workspace..."
 ssh "${PRODUCTION_HOST}" "mkdir -p '${REMOTE_WORKSPACE}'"
-COPYFILE_DISABLE=1 rsync --archive --compress --delete \
-  --exclude '.git/' \
-  --exclude '.next/' \
-  --exclude 'node_modules/' \
-  --exclude '.DS_Store' \
-  --exclude '._*' \
-  --exclude '.env' \
-  --exclude '.env.*' \
-  --exclude '*.log' \
-  --exclude 'tsconfig.tsbuildinfo' \
-  ./ "${PRODUCTION_HOST}:${REMOTE_WORKSPACE}/"
+sync_source
 
 echo "Starting the server-side development process with the server-resident database configuration..."
 ssh "${PRODUCTION_HOST}" bash -s -- \
@@ -173,7 +178,12 @@ if [[ "${ready}" != true ]]; then
 fi
 REMOTE
 
+sync_pid=""
 cleanup() {
+  if [[ -n "${sync_pid}" ]]; then
+    kill "${sync_pid}" 2>/dev/null || true
+    wait "${sync_pid}" 2>/dev/null || true
+  fi
   ssh "${PRODUCTION_HOST}" bash -s -- "${REMOTE_WORKSPACE}" <<'REMOTE' || true
 set -Eeuo pipefail
 remote_workspace="$1"
@@ -189,9 +199,22 @@ REMOTE
 }
 trap cleanup EXIT INT TERM
 
+sync_forever() {
+  while true; do
+    sleep 1
+    if ! sync_source >/dev/null; then
+      echo "Source sync failed; retrying in one second." >&2
+    fi
+  done
+}
+
+sync_forever &
+sync_pid=$!
+
 echo "Remote real-data development is ready at http://${LOCAL_BIND_HOST}:${LOCAL_PORT}/"
 echo "DingTalk redirect URL: ${redirect_uri}"
-echo "Press Ctrl-C to stop the tunnel and the server-side development process."
+echo "Local source changes will sync automatically and trigger Next.js hot reload."
+echo "Press Ctrl-C to stop source sync, the tunnel, and the server-side development process."
 ssh -N \
   -o ExitOnForwardFailure=yes \
   -L "${LOCAL_BIND_HOST}:${LOCAL_PORT}:127.0.0.1:${REMOTE_PORT}" \

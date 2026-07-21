@@ -29,6 +29,10 @@ export class MockDingTalkGateway implements DingTalkGateway {
     return { departments: [], users: [], hasMore: false };
   }
 
+  async searchDirectoryUsers(): Promise<DingTalkDirectoryPage> {
+    return { departments: [], users: [], hasMore: false };
+  }
+
   async sendDirectReminder(
     input: DirectReminderInput,
   ): Promise<ReminderDelivery> {

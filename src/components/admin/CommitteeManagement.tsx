@@ -22,7 +22,7 @@ import {
   PeopleCommunityRegular,
   PersonAddRegular,
 } from "@fluentui/react-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { api, errorMessage } from "@/lib/client/api";
@@ -38,7 +38,8 @@ import styles from "./CommitteeManagement.module.css";
 interface DirectoryUser {
   dingtalkUserId: string;
   name: string;
-  department: string;
+  department: string | null;
+  title?: string;
 }
 
 interface DirectoryLocation {
@@ -91,7 +92,12 @@ export function CommitteeManagement({
   const [directoryLoading, setDirectoryLoading] = useState(false);
   const [directoryHasMore, setDirectoryHasMore] = useState(false);
   const [directoryCursor, setDirectoryCursor] = useState<number | undefined>();
+  const [directorySearchUsers, setDirectorySearchUsers] = useState<DirectoryUser[]>([]);
+  const [directorySearchLoading, setDirectorySearchLoading] = useState(false);
+  const [directorySearchHasMore, setDirectorySearchHasMore] = useState(false);
+  const [directorySearchCursor, setDirectorySearchCursor] = useState<number | undefined>();
   const [dialogError, setDialogError] = useState<string | null>(null);
+  const directorySearchRequest = useRef(0);
 
   useEffect(() => {
     if (mockMode) return;
@@ -149,13 +155,9 @@ export function CommitteeManagement({
   }, [directoryQuery, members]);
   const visibleDirectoryUsers = useMemo(() => {
     const memberIds = new Set(members.map((member) => member.dingtalkUserId));
-    const normalized = directoryQuery.trim().toLowerCase();
-    return directoryUsers.filter(
-      (user) =>
-        !memberIds.has(user.dingtalkUserId) &&
-        (!normalized || `${user.name}${user.department}`.toLowerCase().includes(normalized)),
-    );
-  }, [directoryQuery, directoryUsers, members]);
+    const source = directoryQuery.trim() ? directorySearchUsers : directoryUsers;
+    return source.filter((user) => !memberIds.has(user.dingtalkUserId));
+  }, [directoryQuery, directorySearchUsers, directoryUsers, members]);
 
   const loadDirectory = useCallback(async (
     location: DirectoryLocation,
@@ -186,6 +188,57 @@ export function CommitteeManagement({
     }
   }, []);
 
+  const searchDirectory = useCallback(async (
+    searchQuery: string,
+    cursor = 0,
+    append = false,
+  ) => {
+    const requestId = ++directorySearchRequest.current;
+    setDirectorySearchLoading(true);
+    setDialogError(null);
+    try {
+      const page = await api.searchDingtalkDirectory(searchQuery, cursor);
+      if (requestId !== directorySearchRequest.current) return;
+      const users = page.users.map((user: ApiDirectoryUser) => ({
+        dingtalkUserId: user.userId,
+        name: user.name,
+        department: null,
+        ...(user.title ? { title: user.title } : {}),
+      }));
+      setDirectorySearchUsers((current) => append ? [...current, ...users] : users);
+      setDirectorySearchHasMore(page.hasMore);
+      setDirectorySearchCursor(page.nextCursor);
+    } catch (requestError) {
+      if (requestId !== directorySearchRequest.current) return;
+      setDialogError(errorMessage(requestError));
+      if (!append) setDirectorySearchUsers([]);
+    } finally {
+      if (requestId === directorySearchRequest.current) {
+        setDirectorySearchLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mockMode || !addOpen) return;
+    const searchQuery = directoryQuery.trim();
+    if (!searchQuery) {
+      directorySearchRequest.current += 1;
+      setDirectorySearchUsers([]);
+      setDirectorySearchHasMore(false);
+      setDirectorySearchCursor(undefined);
+      setDirectorySearchLoading(false);
+      return;
+    }
+
+    directorySearchRequest.current += 1;
+    setDirectorySearchLoading(true);
+    const timer = window.setTimeout(() => {
+      void searchDirectory(searchQuery);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [addOpen, directoryQuery, mockMode, searchDirectory]);
+
   function openAddDialog() {
     setSelectedUsers([]);
     setDirectoryQuery("");
@@ -195,6 +248,9 @@ export function CommitteeManagement({
     setDirectoryPath([directoryRoot]);
     setDirectoryDepartments([]);
     setDirectoryUsers([]);
+    setDirectorySearchUsers([]);
+    setDirectorySearchHasMore(false);
+    setDirectorySearchCursor(undefined);
     setAddOpen(true);
     if (!mockMode) void loadDirectory(directoryRoot);
   }
@@ -249,7 +305,7 @@ export function CommitteeManagement({
         return [{
           dingtalkUserId: id,
           name: item.name,
-          department: typeof item.department === "string" ? item.department : "钉钉通讯录",
+          department: typeof item.department === "string" ? item.department : null,
         }];
       });
       if (chosen.length === 0) throw new Error("未选择人员，或钉钉未返回有效的人员信息");
@@ -477,11 +533,11 @@ export function CommitteeManagement({
                   <SearchBox
                     value={directoryQuery}
                     onChange={(_, data) => setDirectoryQuery(data.value)}
-                    placeholder="筛选当前部门人员"
-                    aria-label="筛选当前部门人员"
+                    placeholder="搜索企业通讯录人员"
+                    aria-label="搜索企业通讯录人员"
                   />
-                  <div className={styles.directoryList} aria-busy={directoryLoading}>
-                    {directoryDepartments.map((department) => (
+                  <div className={styles.directoryList} aria-busy={directoryLoading || directorySearchLoading}>
+                    {!directoryQuery.trim() && directoryDepartments.map((department) => (
                       <button
                         type="button"
                         className={styles.departmentRow}
@@ -503,20 +559,29 @@ export function CommitteeManagement({
                           aria-label={`选择${user.name}`}
                         />
                         <span className={styles.avatar}>{initials(user.name)}</span>
-                        <span><strong>{user.name}</strong><small>{user.department}</small></span>
+                        <span><strong>{user.name}</strong><small>{user.department || user.title || "钉钉通讯录"}</small></span>
                       </label>
                     ))}
-                    {directoryLoading && <div className={styles.directoryLoading}><Spinner size="small" label="正在读取通讯录" /></div>}
-                    {!directoryLoading && directoryDepartments.length === 0 && visibleDirectoryUsers.length === 0 && (
-                      <p className={styles.noDirectoryResult}>{directoryQuery ? "当前部门没有匹配人员" : "当前部门暂无可添加人员"}</p>
+                    {(directoryLoading || directorySearchLoading) && <div className={styles.directoryLoading}><Spinner size="small" label={directoryQuery.trim() ? "正在搜索通讯录" : "正在读取通讯录"} /></div>}
+                    {!directoryLoading && !directorySearchLoading && (!directoryQuery.trim() ? directoryDepartments.length === 0 : true) && visibleDirectoryUsers.length === 0 && (
+                      <p className={styles.noDirectoryResult}>{directoryQuery.trim() ? "未找到匹配的企业通讯录人员" : "当前部门暂无可添加人员"}</p>
                     )}
-                    {!directoryLoading && directoryHasMore && directoryCursor !== undefined && (
+                    {!directoryQuery.trim() && !directoryLoading && directoryHasMore && directoryCursor !== undefined && (
                       <Button
                         appearance="subtle"
                         className={styles.loadMore}
                         onClick={() => void loadDirectory(directoryPath.at(-1) ?? directoryRoot, directoryCursor, true)}
                       >
                         加载更多人员
+                      </Button>
+                    )}
+                    {directoryQuery.trim() && !directorySearchLoading && directorySearchHasMore && directorySearchCursor !== undefined && (
+                      <Button
+                        appearance="subtle"
+                        className={styles.loadMore}
+                        onClick={() => void searchDirectory(directoryQuery.trim(), directorySearchCursor, true)}
+                      >
+                        加载更多搜索结果
                       </Button>
                     )}
                   </div>

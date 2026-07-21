@@ -145,6 +145,11 @@ export const api = {
     return apiRequest<DirectoryPage>(`/api/dingtalk/directory?${params.toString()}`);
   },
 
+  searchDingtalkDirectory: (query: string, cursor = 0) => {
+    const params = new URLSearchParams({ query, cursor: String(cursor) });
+    return apiRequest<DirectoryPage>(`/api/dingtalk/directory?${params.toString()}`);
+  },
+
   addCommitteeMember: async (
     committeeId: string,
     input: { dingtalkUserId: string; name: string; department?: string | null; position?: string | null },

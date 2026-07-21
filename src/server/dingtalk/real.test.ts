@@ -168,4 +168,60 @@ describe("RealDingTalkGateway directory", () => {
       "DingTalk department lookup failed: no permission",
     );
   });
+
+  it("searches the enterprise directory and resolves matching user IDs", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({ accessToken: "app-token", expireIn: 7200 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          hasMore: true,
+          totalCount: 3,
+          list: ["user-2", "user-1"],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          userList: [
+            { userid: "user-1", name: "张三" },
+            { userid: "user-2", nickname: "张老师" },
+          ],
+          unauthorizedUserIdList: [],
+        }),
+      );
+    const gateway = new RealDingTalkGateway({
+      appKey: "client-id",
+      appSecret: "client-secret",
+      fetchImpl,
+    });
+
+    await expect(gateway.searchDirectoryUsers("张", 20, 10)).resolves.toEqual({
+      departments: [],
+      users: [
+        { userId: "user-2", name: "张老师" },
+        { userId: "user-1", name: "张三" },
+      ],
+      hasMore: true,
+      nextCursor: 30,
+    });
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "https://api.dingtalk.com/v1.0/contact/users/search",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-acs-dingtalk-access-token": "app-token",
+        }),
+        body: JSON.stringify({ queryWord: "张", offset: 20, size: 10 }),
+      }),
+    );
+    const detailUrl = fetchImpl.mock.calls[2]?.[0];
+    expect(detailUrl).toBeInstanceOf(URL);
+    expect((detailUrl as URL).pathname).toBe("/v1.0/contact/users/batch/get");
+    expect((detailUrl as URL).searchParams.get("userIdList")).toBe(
+      JSON.stringify(["user-2", "user-1"]),
+    );
+  });
 });

@@ -77,6 +77,25 @@ interface DepartmentUserListResponse {
   };
 }
 
+interface UserSearchResponse {
+  hasMore?: boolean;
+  list?: string[];
+  totalCount?: number;
+  code?: string;
+  message?: string;
+}
+
+interface BatchUserResponse {
+  userList?: Array<{
+    userid?: string;
+    name?: string;
+    nickname?: string;
+  }>;
+  unauthorizedUserIdList?: string[];
+  code?: string;
+  message?: string;
+}
+
 interface CachedToken {
   value: string;
   expiresAt: number;
@@ -276,6 +295,79 @@ export class RealDingTalkGateway implements DingTalkGateway {
       ...(users.result?.next_cursor === undefined
         ? {}
         : { nextCursor: users.result.next_cursor }),
+    };
+  }
+
+  async searchDirectoryUsers(
+    queryWord: string,
+    offset = 0,
+    size = 20,
+  ): Promise<DingTalkDirectoryPage> {
+    const token = await this.getAccessToken();
+    const pageSize = Math.min(Math.max(size, 1), 50);
+    const searchResponse = await this.fetchImpl(
+      `${this.apiBaseUrl}/v1.0/contact/users/search`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-acs-dingtalk-access-token": token,
+        },
+        body: JSON.stringify({ queryWord, offset, size: pageSize }),
+        cache: "no-store",
+      },
+    );
+    const search = (await searchResponse.json()) as UserSearchResponse;
+    if (!searchResponse.ok || search.code) {
+      throw new Error(
+        `DingTalk user search failed: ${search.message ?? searchResponse.statusText}`,
+      );
+    }
+
+    const userIds = search.list ?? [];
+    if (userIds.length === 0) {
+      return {
+        departments: [],
+        users: [],
+        hasMore: search.hasMore === true,
+        ...(search.hasMore === true ? { nextCursor: offset + pageSize } : {}),
+      };
+    }
+
+    const batchUrl = new URL(`${this.apiBaseUrl}/v1.0/contact/users/batch/get`);
+    batchUrl.searchParams.set("userIdList", JSON.stringify(userIds));
+    const detailResponse = await this.fetchImpl(batchUrl, {
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "x-acs-dingtalk-access-token": token,
+      },
+      cache: "no-store",
+    });
+    const details = (await detailResponse.json()) as BatchUserResponse;
+    if (!detailResponse.ok || details.code) {
+      throw new Error(
+        `DingTalk user detail lookup failed: ${details.message ?? detailResponse.statusText}`,
+      );
+    }
+
+    const usersById = new Map(
+      (details.userList ?? []).flatMap((user) =>
+        user.userid && (user.name || user.nickname)
+          ? [[user.userid, { userId: user.userid, name: user.name ?? user.nickname! }] as const]
+          : [],
+      ),
+    );
+    const hasMore = search.hasMore === true;
+
+    return {
+      departments: [],
+      users: userIds.flatMap((userId) => {
+        const user = usersById.get(userId);
+        return user ? [user] : [];
+      }),
+      hasMore,
+      ...(hasMore ? { nextCursor: offset + pageSize } : {}),
     };
   }
 
