@@ -94,21 +94,21 @@
 }
 
 .dialog {
-  width: min(560px, calc(100vw - 32px));
-  max-width: min(560px, calc(100vw - 32px));
+  width: min(620px, calc(100vw - 32px));
+  max-width: min(620px, calc(100vw - 32px));
 }
 
 .dialogIntro {
-  margin: 4px 0 16px;
+  margin: 0;
 }
 
 .dialogMessage {
-  margin-bottom: 14px;
+  margin: 0;
 }
 
-.form {
+.dialogContent {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 @media (max-width: 900px) {

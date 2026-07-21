@@ -10,8 +10,6 @@ import {
   DialogSurface,
   DialogTitle,
   DialogTrigger,
-  Field,
-  Input,
   MessageBar,
   MessageBarBody,
 } from "@fluentui/react-components";
@@ -20,22 +18,14 @@ import { useMemo, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { useSession } from "@/lib/client/session";
 import type { Initiator } from "@/lib/client/types";
+import { DirectoryPersonPicker, type DirectoryPerson } from "./DirectoryPersonPicker";
 import styles from "./InitiatorManagement.module.css";
 
-interface FormState {
-  name: string;
-  department: string;
-  dingtalkUserId: string;
-}
-
-const emptyForm: FormState = { name: "", department: "", dingtalkUserId: "" };
-
 export function InitiatorManagement({ initialInitiators }: { initialInitiators: Initiator[] }) {
-  const { user } = useSession();
+  const { user, mockMode = false, corpId } = useSession();
   const [initiators, setInitiators] = useState(initialInitiators);
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [selectedPerson, setSelectedPerson] = useState<DirectoryPerson | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -46,23 +36,21 @@ export function InitiatorManagement({ initialInitiators }: { initialInitiators: 
   );
 
   function openAdd() {
-    setForm(emptyForm);
-    setAttempted(false);
+    setSelectedPerson(null);
     setError(null);
     setNotice(null);
     setAddOpen(true);
   }
 
   async function add() {
-    setAttempted(true);
-    if (!form.name.trim() || !form.dingtalkUserId.trim()) return;
+    if (!selectedPerson) return;
     setSaving(true);
     setError(null);
     try {
       const result = await api.addInitiator({
-        name: form.name.trim(),
-        department: form.department.trim() || null,
-        dingtalkUserId: form.dingtalkUserId.trim(),
+        name: selectedPerson.name,
+        department: selectedPerson.department,
+        dingtalkUserId: selectedPerson.dingtalkUserId,
       });
       setInitiators((current) => {
         const exists = current.some((initiator) => initiator.id === result.initiator.id);
@@ -153,28 +141,27 @@ export function InitiatorManagement({ initialInitiators }: { initialInitiators: 
         <DialogSurface className={styles.dialog}>
           <DialogBody>
             <DialogTitle>添加发起人</DialogTitle>
-            <DialogContent>
-              <p className={styles.dialogIntro}>请填写与钉钉通讯录一致的用户 ID。账号添加后即可进入管理端发起投票。</p>
+            <DialogContent className={styles.dialogContent}>
+              <p className={styles.dialogIntro}>
+                {mockMode ? "当前为演示环境，请从模拟的组织通讯录中选择人员。" : "搜索姓名，或按组织架构浏览并选择人员。添加后即可进入管理端发起投票。"}
+              </p>
               {error && (
                 <MessageBar intent="error" className={styles.dialogMessage}>
                   <MessageBarBody>{error}</MessageBarBody>
                 </MessageBar>
               )}
-              <form id="add-initiator-form" className={styles.form} onSubmit={(event) => { event.preventDefault(); void add(); }}>
-                <Field label="姓名" required validationState={attempted && !form.name.trim() ? "error" : "none"} validationMessage={attempted && !form.name.trim() ? "请输入姓名" : undefined}>
-                  <Input value={form.name} onChange={(_, data) => setForm((current) => ({ ...current, name: data.value }))} />
-                </Field>
-                <Field label="部门" hint="选填">
-                  <Input value={form.department} onChange={(_, data) => setForm((current) => ({ ...current, department: data.value }))} />
-                </Field>
-                <Field label="钉钉用户 ID" required hint="使用稳定的通讯录 userId，不要填写手机号。" validationState={attempted && !form.dingtalkUserId.trim() ? "error" : "none"} validationMessage={attempted && !form.dingtalkUserId.trim() ? "请输入钉钉用户 ID" : undefined}>
-                  <Input value={form.dingtalkUserId} onChange={(_, data) => setForm((current) => ({ ...current, dingtalkUserId: data.value }))} autoComplete="off" />
-                </Field>
-              </form>
+              <DirectoryPersonPicker
+                open={addOpen}
+                mockMode={mockMode}
+                corpId={corpId}
+                excludedUserIds={initiators.map((initiator) => initiator.dingtalkUserId)}
+                selected={selectedPerson}
+                onSelect={setSelectedPerson}
+              />
             </DialogContent>
             <DialogActions>
               <DialogTrigger disableButtonEnhancement><Button appearance="secondary" disabled={saving}>取消</Button></DialogTrigger>
-              <Button appearance="primary" type="submit" form="add-initiator-form" disabled={saving}>{saving ? "正在添加" : "确认添加"}</Button>
+              <Button appearance="primary" onClick={() => void add()} disabled={saving || !selectedPerson}>{saving ? "正在添加" : "确认添加"}</Button>
             </DialogActions>
           </DialogBody>
         </DialogSurface>
