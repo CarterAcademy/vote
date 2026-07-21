@@ -5,10 +5,12 @@ import { MockDingTalkGateway } from "../dingtalk";
 import {
   addInitiator,
   authenticateDingTalkCode,
+  authenticateDingTalkWebCode,
   getUserById,
   listInitiators,
   updateInitiator,
 } from "./users";
+import { listPolls } from "./polls";
 
 const actor = {
   id: "00000000-0000-4000-8000-000000000099",
@@ -79,6 +81,53 @@ describe("initiator management", () => {
     ).resolves.toMatchObject({
       name: "测试发起人（钉钉）",
       department: "智能创新部 / 研究院员工",
+    });
+  });
+
+  it("creates an ordinary user on first DingTalk login", async () => {
+    class NewUserGateway extends MockDingTalkGateway {
+      override async exchangeAuthCode() {
+        return {
+          userId: "dt_ordinary_without_poll_01",
+          name: "普通用户",
+          department: "测试部门",
+        };
+      }
+    }
+
+    const user = await authenticateDingTalkCode(
+      "auth-code",
+      new NewUserGateway(),
+    );
+
+    expect(user).toMatchObject({
+      dingtalkUserId: "dt_ordinary_without_poll_01",
+      name: "普通用户",
+      role: "MEMBER",
+    });
+    await expect(getUserById(user.id)).resolves.toMatchObject({
+      role: "MEMBER",
+    });
+    await expect(
+      listPolls({ scope: "ELIGIBLE" }, user),
+    ).resolves.toMatchObject({ items: [], total: 0 });
+  });
+
+  it("creates an ordinary user on first DingTalk web login", async () => {
+    class NewWebUserGateway extends MockDingTalkGateway {
+      override async exchangeWebAuthCode() {
+        return {
+          userId: "dt_ordinary_web_without_poll_01",
+          name: "网页普通用户",
+        };
+      }
+    }
+
+    await expect(
+      authenticateDingTalkWebCode("auth-code", new NewWebUserGateway()),
+    ).resolves.toMatchObject({
+      dingtalkUserId: "dt_ordinary_web_without_poll_01",
+      role: "MEMBER",
     });
   });
 

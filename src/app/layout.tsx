@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     default: "两委会评审投票",
     template: "%s | 两委会评审投票",
   },
-  description: "中关村两院两委会人选评审投票系统",
+  description: "面向学术与技术委员会的钉钉评审投票平台，支持独立角色配置、定向投票与机器人提醒。",
 };
 
 export const viewport: Viewport = {

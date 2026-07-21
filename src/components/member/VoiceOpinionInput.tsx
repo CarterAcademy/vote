@@ -19,6 +19,7 @@ import type { VoiceRecording } from "@/lib/client/types";
 import styles from "./MemberVoteForm.module.css";
 
 const HOLD_DELAY_MS = 320;
+const RECORDING_START_HAPTIC_MS = 45;
 
 interface BrowserSpeechRecognitionResult {
   isFinal: boolean;
@@ -63,6 +64,22 @@ function speechRecognitionConstructor() {
 
 function mediaRecorderSupported() {
   return typeof MediaRecorder !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia);
+}
+
+function triggerRecordingStartHaptic() {
+  try {
+    if (navigator.vibrate?.(RECORDING_START_HAPTIC_MS)) return;
+  } catch {
+    // Fall through to DingTalk's native bridge when browser vibration is unavailable.
+  }
+
+  void import("dingtalk-jsapi")
+    .then((dd) => {
+      if (dd.env.platform !== "notInDingTalk") {
+        return dd.device.notification.vibrate({ duration: RECORDING_START_HAPTIC_MS });
+      }
+    })
+    .catch(() => undefined);
 }
 
 export function preferredRecordingType(
@@ -212,6 +229,7 @@ export function VoiceOpinionInput({
           if (event.data.size > 0) mediaChunksRef.current.push(event.data);
         };
         recorder.onstart = () => {
+          triggerRecordingStartHaptic();
           setListening(true);
           if (pendingMediaStopRef.current && recorder.state === "recording") recorder.stop();
         };
@@ -274,6 +292,7 @@ export function VoiceOpinionInput({
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.onstart = () => {
+      triggerRecordingStartHaptic();
       setListening(true);
       setVoiceMessage(null);
     };

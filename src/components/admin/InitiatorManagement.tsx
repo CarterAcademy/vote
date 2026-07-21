@@ -93,7 +93,7 @@ export function InitiatorManagement({ initialInitiators }: { initialInitiators: 
       <div className={styles.header}>
         <div>
           <h2 id="initiator-title">发起人管理</h2>
-          <p>{activeCount} 名启用中的发起人。停用后将无法登录，历史投票仍会保留。</p>
+          <p>{activeCount} 名启用中的发起人。停用后将无法发起投票，历史投票仍会保留。</p>
         </div>
         <Button appearance="secondary" icon={<AddRegular />} onClick={openAdd}>添加发起人</Button>
       </div>
@@ -173,8 +173,8 @@ export function InitiatorManagement({ initialInitiators }: { initialInitiators: 
             <DialogTitle>{toggleTarget?.isActive ? "停用发起人" : "启用发起人"}</DialogTitle>
             <DialogContent>
               {toggleTarget?.isActive
-                ? `停用后，${toggleTarget.name}将无法登录或发起投票。历史记录不会删除。`
-                : `启用后，${toggleTarget?.name}可以重新登录并发起投票。`}
+                ? `停用后，${toggleTarget.name}将无法发起投票。历史记录不会删除。`
+                : `启用后，${toggleTarget?.name}可以重新发起投票。`}
             </DialogContent>
             <DialogActions>
               <DialogTrigger disableButtonEnhancement><Button appearance="secondary" disabled={saving}>取消</Button></DialogTrigger>

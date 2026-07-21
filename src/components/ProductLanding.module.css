@@ -1,0 +1,658 @@
+.page {
+  min-height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 14% 8%, rgba(0, 105, 92, 0.08), transparent 28rem),
+    var(--app-surface);
+  color: var(--app-text);
+}
+
+.header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: min(1240px, calc(100% - 48px));
+  height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto;
+  border-bottom: 1px solid rgba(183, 194, 189, 0.7);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 680;
+  text-decoration: none;
+}
+
+.brandMark {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--app-accent);
+  color: #f7fbfa;
+  font-size: 16px;
+  font-weight: 750;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav a {
+  color: var(--app-text-muted);
+  font-size: 14px;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.nav a:hover {
+  color: var(--app-accent-strong);
+}
+
+.hero {
+  display: grid;
+  width: min(1240px, calc(100% - 48px));
+  min-height: calc(100dvh - 72px);
+  align-items: center;
+  margin: 0 auto;
+  padding: 64px 0 72px;
+  gap: clamp(48px, 6vw, 88px);
+  grid-template-columns: minmax(0, 0.84fr) minmax(480px, 1.16fr);
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  margin: 0 0 22px;
+  color: var(--app-accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.hero h1 {
+  max-width: 9em;
+  margin: 0;
+  font-size: clamp(42px, 5.2vw, 70px);
+  font-weight: 720;
+  letter-spacing: -0.055em;
+  line-height: 1.07;
+}
+
+.heroText {
+  max-width: 31em;
+  margin: 28px 0 0;
+  color: var(--app-text-muted);
+  font-size: clamp(17px, 1.4vw, 20px);
+  line-height: 1.8;
+}
+
+.loginArea {
+  display: flex;
+  align-items: center;
+  margin-top: 34px;
+  gap: 16px;
+}
+
+.primaryAction {
+  min-width: 154px;
+  white-space: nowrap;
+}
+
+.loginArea > span {
+  max-width: 13em;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.loginMessage {
+  max-width: 440px;
+  margin-top: 18px;
+}
+
+.heroVisual {
+  position: relative;
+  min-width: 0;
+  padding: 18px 18px 0 0;
+}
+
+.heroVisual::before {
+  position: absolute;
+  top: -18px;
+  right: -12px;
+  width: 62%;
+  height: 54%;
+  border-radius: 16px;
+  background: var(--app-accent-soft);
+  content: "";
+}
+
+.heroVisual img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 26px 70px rgba(24, 54, 43, 0.14);
+}
+
+.visualCaption {
+  position: relative;
+  display: grid;
+  width: min(390px, calc(100% - 34px));
+  margin: -36px 0 0 34px;
+  padding: 20px 22px;
+  border: 1px solid rgba(217, 223, 220, 0.92);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 44px rgba(24, 54, 43, 0.11);
+  gap: 5px;
+}
+
+.visualCaption strong {
+  font-size: 15px;
+}
+
+.visualCaption span {
+  color: var(--app-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rolesSection,
+.entrySection,
+.usageSection,
+.qaSection,
+.footer {
+  width: min(1120px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.rolesSection {
+  padding: 120px 0;
+}
+
+.sectionHeading {
+  max-width: 700px;
+  margin-bottom: 48px;
+}
+
+.sectionHeading h2,
+.entryIntro h2 {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 50px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.15;
+}
+
+.sectionHeading p,
+.entryIntro p {
+  max-width: 42em;
+  margin: 18px 0 0;
+  color: var(--app-text-muted);
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+.roleGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr);
+}
+
+.rolePanel {
+  display: grid;
+  min-height: 190px;
+  align-content: start;
+  padding: 30px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-surface-muted);
+  gap: 20px;
+  grid-template-columns: auto 1fr;
+}
+
+.rolePanel > svg {
+  width: 28px;
+  height: 28px;
+  color: var(--app-accent-strong);
+}
+
+.rolePanel h3,
+.entryList h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+}
+
+.rolePanel p,
+.entryList p {
+  margin: 10px 0 0;
+  color: var(--app-text-muted);
+  line-height: 1.75;
+}
+
+.committeeRole {
+  min-height: 396px;
+  align-content: center;
+  padding: clamp(32px, 5vw, 58px);
+  background: var(--app-accent-pale);
+  grid-row: span 2;
+}
+
+.committeeRole > svg {
+  width: 38px;
+  height: 38px;
+}
+
+.committeeRole h3 {
+  font-size: 28px;
+}
+
+.committeeRole > span {
+  width: fit-content;
+  margin-top: 8px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(0, 83, 72, 0.2);
+  color: var(--app-accent-strong);
+  font-size: 13px;
+  font-weight: 650;
+  grid-column: 2;
+}
+
+.entrySection {
+  display: grid;
+  align-items: start;
+  padding: 116px 0 128px;
+  border-top: 1px solid var(--app-border);
+  gap: clamp(46px, 8vw, 108px);
+  grid-template-columns: minmax(0, 0.8fr) minmax(480px, 1.2fr);
+}
+
+.entryIntro {
+  position: sticky;
+  top: 48px;
+}
+
+.entryList {
+  display: grid;
+  gap: 14px;
+}
+
+.entryList article {
+  display: grid;
+  min-height: 156px;
+  align-items: start;
+  padding: 28px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-surface);
+  gap: 20px;
+  grid-template-columns: auto 1fr;
+}
+
+.entryIcon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--app-accent-soft);
+  color: var(--app-accent-strong);
+}
+
+.entryIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.entryList .botEntry {
+  border-color: rgba(0, 105, 92, 0.26);
+  background: var(--app-accent-pale);
+}
+
+.usageSection {
+  padding: 112px 0 124px;
+  border-top: 1px solid var(--app-border);
+}
+
+.usageGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+}
+
+.usageGrid article {
+  display: grid;
+  min-height: 300px;
+  align-content: space-between;
+  padding: clamp(30px, 4vw, 48px);
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  gap: 30px;
+}
+
+.voiceFeature {
+  background: var(--app-accent-pale);
+}
+
+.committeeRule {
+  background: var(--app-surface-muted);
+}
+
+.featureIcon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--app-accent-soft);
+  color: var(--app-accent-strong);
+}
+
+.featureIcon svg {
+  width: 27px;
+  height: 27px;
+}
+
+.usageGrid h3 {
+  margin: 0;
+  font-size: clamp(23px, 2.4vw, 31px);
+  font-weight: 690;
+  letter-spacing: -0.035em;
+}
+
+.usageGrid p {
+  max-width: 36em;
+  margin: 14px 0 0;
+  color: var(--app-text-muted);
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.voiceFeature > strong {
+  width: fit-content;
+  padding-top: 18px;
+  border-top: 1px solid rgba(0, 83, 72, 0.2);
+  color: var(--app-accent-strong);
+  font-size: 14px;
+}
+
+.qaSection {
+  display: grid;
+  padding: 112px 0 124px;
+  border-top: 1px solid var(--app-border);
+  gap: clamp(44px, 8vw, 108px);
+  grid-template-columns: minmax(240px, 0.65fr) minmax(0, 1.35fr);
+}
+
+.qaHeading h2 {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 50px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.qaHeading p {
+  max-width: 20em;
+  margin: 18px 0 0;
+  color: var(--app-text-muted);
+  line-height: 1.8;
+}
+
+.qaList {
+  margin: 0;
+}
+
+.qaList > div {
+  padding: 0 0 28px;
+}
+
+.qaList > div + div {
+  padding-top: 28px;
+  border-top: 1px solid var(--app-border);
+}
+
+.qaList dt {
+  font-size: 20px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+}
+
+.qaList dd {
+  max-width: 43em;
+  margin: 10px 0 0;
+  color: var(--app-text-muted);
+  line-height: 1.8;
+}
+
+.auditNote {
+  display: flex;
+  align-items: center;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--app-accent-pale);
+  color: var(--app-accent-strong);
+  font-size: 14px;
+  font-weight: 650;
+  gap: 11px;
+  grid-column: 2;
+}
+
+.auditNote svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  padding: 34px 0 42px;
+  border-top: 1px solid var(--app-border);
+  gap: 14px;
+}
+
+.footer p {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.footer strong {
+  color: var(--app-text);
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: minmax(0, 0.9fr) minmax(380px, 1.1fr);
+    gap: 34px;
+  }
+
+  .hero h1 {
+    font-size: clamp(40px, 6vw, 54px);
+  }
+
+  .entrySection {
+    gap: 46px;
+    grid-template-columns: 0.8fr 1.2fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .header {
+    width: calc(100% - 32px);
+    height: 64px;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .hero {
+    width: calc(100% - 32px);
+    min-height: auto;
+    padding: 52px 0 78px;
+    gap: 48px;
+    grid-template-columns: 1fr;
+  }
+
+  .eyebrow {
+    margin-bottom: 18px;
+  }
+
+  .hero h1 {
+    max-width: 8em;
+    font-size: clamp(40px, 12vw, 54px);
+  }
+
+  .heroText {
+    margin-top: 22px;
+    font-size: 17px;
+  }
+
+  .loginArea {
+    align-items: flex-start;
+    margin-top: 28px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .loginArea > span {
+    max-width: none;
+  }
+
+  .heroVisual {
+    padding: 10px 8px 0 0;
+  }
+
+  .visualCaption {
+    width: calc(100% - 28px);
+    margin: -24px 0 0 20px;
+  }
+
+  .rolesSection,
+  .entrySection,
+  .usageSection,
+  .qaSection,
+  .footer {
+    width: calc(100% - 32px);
+  }
+
+  .rolesSection {
+    padding: 82px 0;
+  }
+
+  .sectionHeading {
+    margin-bottom: 34px;
+  }
+
+  .sectionHeading h2,
+  .entryIntro h2 {
+    font-size: 36px;
+  }
+
+  .sectionHeading p,
+  .entryIntro p {
+    font-size: 16px;
+  }
+
+  .roleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .rolePanel,
+  .committeeRole {
+    min-height: auto;
+    padding: 26px;
+    grid-row: auto;
+  }
+
+  .committeeRole > span {
+    grid-column: 1 / -1;
+  }
+
+  .entrySection {
+    padding: 82px 0 90px;
+    gap: 36px;
+    grid-template-columns: 1fr;
+  }
+
+  .entryIntro {
+    position: static;
+  }
+
+  .entryList article {
+    min-height: auto;
+    padding: 24px;
+  }
+
+  .usageSection,
+  .qaSection {
+    padding: 82px 0 90px;
+  }
+
+  .usageGrid,
+  .qaSection {
+    grid-template-columns: 1fr;
+  }
+
+  .usageGrid article {
+    min-height: auto;
+    padding: 28px;
+  }
+
+  .qaSection {
+    gap: 38px;
+  }
+
+  .qaHeading p {
+    max-width: none;
+  }
+
+  .auditNote {
+    grid-column: 1;
+  }
+
+  .footer {
+    padding-bottom: calc(32px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 420px) {
+  .rolePanel,
+  .entryList article,
+  .usageGrid article {
+    grid-template-columns: 1fr;
+  }
+
+  .committeeRole > span {
+    grid-column: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav a {
+    transition: none;
+  }
+}

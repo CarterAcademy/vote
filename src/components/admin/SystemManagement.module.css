@@ -1,0 +1,20 @@
+.page {
+  display: grid;
+  gap: 24px;
+}
+
+.pageHeader h1,
+.pageHeader p {
+  margin: 0;
+}
+
+.pageHeader h1 {
+  font-size: clamp(1.75rem, 3vw, 2.4rem);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+
+.pageHeader p {
+  margin-top: 8px;
+  color: var(--colorNeutralForeground2);
+}

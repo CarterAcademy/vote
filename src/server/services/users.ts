@@ -12,6 +12,7 @@ import {
 import { ensureDatabaseReady } from "../db";
 import {
   getDingTalkGateway,
+  type DingTalkIdentity,
   type DingTalkGateway,
 } from "../dingtalk";
 import { DomainError } from "./errors";
@@ -301,27 +302,33 @@ export async function listDemoUsers(): Promise<DemoUser[]> {
   }));
 }
 
-export async function authenticateDingTalkCode(
-  authCode: string,
-  gateway: DingTalkGateway = getDingTalkGateway(),
+async function resolveAuthenticatedUser(
+  identity: DingTalkIdentity,
 ): Promise<SessionUser> {
-  let identity: Awaited<ReturnType<DingTalkGateway["exchangeAuthCode"]>>;
-  try {
-    identity = await gateway.exchangeAuthCode(authCode);
-  } catch (error) {
-    throw new DomainError(
-      "DINGTALK_ERROR",
-      "钉钉身份验证失败，请重新进入应用",
-      error instanceof Error ? { cause: error.message } : undefined,
-    );
-  }
+  let user = await getUserByDingTalkUserId(identity.userId);
 
-  const user = await getUserByDingTalkUserId(identity.userId);
   if (!user) {
-    throw new DomainError(
-      "FORBIDDEN",
-      "当前钉钉账号不在本系统的 HR 或委员名单中",
-    );
+    const db = await ensureDatabaseReady();
+    await db
+      .insertInto("users")
+      .values({
+        id: randomUUID(),
+        dingtalk_user_id: identity.userId,
+        name: identity.name?.trim() || "钉钉用户",
+        department: identity.department?.trim() || null,
+        role: "MEMBER",
+      })
+      .onConflict((conflict) =>
+        conflict.column("dingtalk_user_id").doNothing(),
+      )
+      .execute();
+
+    user = await getUserByDingTalkUserId(identity.userId);
+    if (!user) {
+      // Preserve an explicit account deactivation if the DingTalk identity was
+      // already present but inactive.
+      throw new DomainError("FORBIDDEN", "当前钉钉账号已停用");
+    }
   }
 
   if (identity.name || identity.department) {
@@ -340,6 +347,24 @@ export async function authenticateDingTalkCode(
   return identity.name ? { ...user, name: identity.name } : user;
 }
 
+export async function authenticateDingTalkCode(
+  authCode: string,
+  gateway: DingTalkGateway = getDingTalkGateway(),
+): Promise<SessionUser> {
+  let identity: Awaited<ReturnType<DingTalkGateway["exchangeAuthCode"]>>;
+  try {
+    identity = await gateway.exchangeAuthCode(authCode);
+  } catch (error) {
+    throw new DomainError(
+      "DINGTALK_ERROR",
+      "钉钉身份验证失败，请重新进入应用",
+      error instanceof Error ? { cause: error.message } : undefined,
+    );
+  }
+
+  return resolveAuthenticatedUser(identity);
+}
+
 export async function authenticateDingTalkWebCode(
   authCode: string,
   gateway: DingTalkGateway = getDingTalkGateway(),
@@ -355,26 +380,5 @@ export async function authenticateDingTalkWebCode(
     );
   }
 
-  const user = await getUserByDingTalkUserId(identity.userId);
-  if (!user) {
-    throw new DomainError(
-      "FORBIDDEN",
-      "当前钉钉账号不在本系统的 HR 或委员名单中",
-    );
-  }
-
-  if (identity.name || identity.department) {
-    const db = await ensureDatabaseReady();
-    await db
-      .updateTable("users")
-      .set({
-        ...(identity.name ? { name: identity.name } : {}),
-        ...(identity.department ? { department: identity.department } : {}),
-        updated_at: new Date(),
-      })
-      .where("id", "=", user.id)
-      .execute();
-  }
-
-  return identity.name ? { ...user, name: identity.name } : user;
+  return resolveAuthenticatedUser(identity);
 }

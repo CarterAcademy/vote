@@ -88,6 +88,7 @@ describe("VoiceOpinionInput", () => {
     Reflect.deleteProperty(window, "webkitSpeechRecognition");
     Reflect.deleteProperty(globalThis, "MediaRecorder");
     Reflect.deleteProperty(navigator, "mediaDevices");
+    Reflect.deleteProperty(navigator, "vibrate");
     vi.restoreAllMocks();
   });
 
@@ -109,15 +110,24 @@ describe("VoiceOpinionInput", () => {
   });
 
   it("starts on a long press and appends recognized speech as text", () => {
+    const vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, "vibrate", {
+      configurable: true,
+      value: vibrate,
+    });
     render(<ControlledInput initialValue="已有意见" />);
     fireEvent.click(screen.getByRole("button", { name: "切换到语音输入" }));
     const holdButton = screen.getByRole("button", { name: "按住说话，轻触切换文字输入" });
 
     fireEvent.pointerDown(holdButton, { button: 0, pointerId: 1 });
-    act(() => vi.advanceTimersByTime(320));
+    act(() => vi.advanceTimersByTime(319));
+    expect(vibrate).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
 
     const recognition = FakeSpeechRecognition.latest;
     expect(recognition?.start).toHaveBeenCalledOnce();
+    expect(vibrate).toHaveBeenCalledOnce();
+    expect(vibrate).toHaveBeenCalledWith(45);
     act(() => {
       recognition?.onresult?.(Object.assign(new Event("result"), {
         resultIndex: 0,
