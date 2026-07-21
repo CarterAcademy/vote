@@ -2,12 +2,12 @@
 
 set -Eeuo pipefail
 
-PRODUCTION_HOST="${PRODUCTION_HOST:-ubuntu@10.1.131.51}"
+PRODUCTION_HOST="${PRODUCTION_HOST:-ubuntu@10.1.130.9}"
 REMOTE_ROOT="${REMOTE_ROOT:-/srv/committee-vote}"
-NODE_DIR="${NODE_DIR:-${REMOTE_ROOT}/runtime/node22/bin}"
-NGINX_SITE="${NGINX_SITE:-/etc/nginx/sites-enabled/icais-registration}"
-NGINX_SNIPPET="infra/nginx/committee-vote.production.conf"
-PUBLIC_URL="${PUBLIC_URL:-http://10.1.131.51}"
+NODE_DIR="${NODE_DIR:-/usr/bin}"
+APP_HOST="${APP_HOST:-10.1.130.9}"
+APP_PORT="${APP_PORT:-3011}"
+PUBLIC_URL="${PUBLIC_URL:-http://${APP_HOST}:${APP_PORT}}"
 
 for command_name in git npm rsync ssh; do
   if ! command -v "${command_name}" >/dev/null 2>&1; then
@@ -16,12 +16,12 @@ for command_name in git npm rsync ssh; do
   fi
 done
 
-if [[ ! -f docs/investigation-summary.html || ! -f "${NGINX_SNIPPET}" ]]; then
+if [[ ! -f docs/investigation-summary.html ]]; then
   echo "Run this script from the committee-vote repository root." >&2
   exit 1
 fi
 
-if [[ ! "${REMOTE_ROOT}" =~ ^/[A-Za-z0-9._/-]+$ || ! "${NODE_DIR}" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+if [[ ! "${REMOTE_ROOT}" =~ ^/[A-Za-z0-9._/-]+$ || ! "${NODE_DIR}" =~ ^/[A-Za-z0-9._/-]+$ || ! "${APP_PORT}" =~ ^[0-9]+$ ]]; then
   echo "REMOTE_ROOT or NODE_DIR contains unsupported characters." >&2
   exit 1
 fi
@@ -54,13 +54,15 @@ COPYFILE_DISABLE=1 rsync --archive --compress \
 
 echo "Building and activating the production release..."
 ssh "${PRODUCTION_HOST}" bash -s -- \
-  "${REMOTE_ROOT}" "${remote_release}" "${NODE_DIR}" "${NGINX_SITE}" <<'REMOTE_SCRIPT'
+  "${REMOTE_ROOT}" "${remote_release}" "${NODE_DIR}" "${APP_HOST}" "${APP_PORT}" <<'REMOTE_SCRIPT'
 set -Eeuo pipefail
 
 remote_root="$1"
 remote_release="$2"
 node_dir="$3"
-nginx_site="$4"
+app_host="$4"
+app_port="$5"
+app_origin="http://${app_host}:${app_port}"
 env_file="${remote_root}/app.env"
 current_link="${remote_root}/current"
 previous_release=""
@@ -115,7 +117,7 @@ set -a
 source "${env_file}"
 set +a
 BACKUP_DIR="${remote_root}/backups" \
-  "${node_dir}/node" "${current_link}/scripts/backup-db.mjs"
+  "${node_dir}/node" "${remote_release}/scripts/backup-db.mjs"
 
 echo "Applying database migrations..."
 "${node_dir}/npm" run db:migrate
@@ -127,7 +129,7 @@ sudo systemctl restart committee-vote.service
 echo "Waiting for the application health endpoint..."
 healthy=false
 for _ in {1..30}; do
-  if curl --fail --silent http://10.1.131.51:3000/api/health >/dev/null; then
+  if curl --fail --silent "${app_origin}/api/health" >/dev/null; then
     healthy=true
     break
   fi
@@ -142,47 +144,12 @@ if [[ "${healthy}" != true ]]; then
 fi
 
 curl --fail --silent --show-error \
-  http://10.1.131.51:3000/investigation-summary.html >/dev/null
-
-echo "Installing the nginx report route..."
-sudo install -m 0644 infra/nginx/committee-vote.production.conf \
-  /etc/nginx/snippets/committee-vote-report.conf
-
-include_line='    include /etc/nginx/snippets/committee-vote-report.conf;'
-if ! sudo grep -Fqx "${include_line}" "${nginx_site}"; then
-  match_count="$(sudo grep -c '^[[:space:]]*server_name 10\.1\.131\.51 _;' "${nginx_site}")"
-  if [[ "${match_count}" != 1 ]]; then
-    echo "Could not identify exactly one nginx server block in ${nginx_site}." >&2
-    exit 1
-  fi
-  sudo sed -i \
-    "/^[[:space:]]*server_name 10\\.1\\.131\\.51 _;/a\\${include_line}" \
-    "${nginx_site}"
-fi
-
-sudo nginx -t
-sudo systemctl reload nginx
-
-nginx_ready=false
-for _ in {1..15}; do
-  if curl --fail --silent \
-    --header 'Host: 10.1.131.51' \
-    http://127.0.0.1/investigation-summary.html >/dev/null; then
-    nginx_ready=true
-    break
-  fi
-  sleep 1
-done
-
-if [[ "${nginx_ready}" != true ]]; then
-  echo "nginx report URL check failed." >&2
-  exit 1
-fi
+  "${app_origin}/investigation-summary.html" >/dev/null
 
 trap - EXIT
 sudo systemctl --no-pager --full status committee-vote.service | sed -n '1,12p'
 REMOTE_SCRIPT
 
 echo "Deployment complete."
-echo "Application: http://10.1.131.51:3000/"
+echo "Application: ${PUBLIC_URL}/"
 echo "Report:      ${PUBLIC_URL}/investigation-summary.html"

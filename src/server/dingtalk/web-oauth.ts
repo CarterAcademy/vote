@@ -29,7 +29,7 @@ export function getDingTalkWebRedirectUri(): string {
   return url.toString();
 }
 
-function isPrivateNetworkHost(hostname: string): boolean {
+export function isPrivateNetworkHost(hostname: string): boolean {
   if (hostname.startsWith("10.")) return true;
   if (hostname.startsWith("192.168.")) return true;
   const match = /^172\.(\d{1,2})\./.exec(hostname);

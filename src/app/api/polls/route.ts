@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const input = createPollSchema.parse({
       committeeId: formData.get("committeeId"),
+      directVoters: JSON.parse(String(formData.get("directVoters") || "[]")),
       title: formData.get("title"),
       candidateName: formData.get("candidateName"),
       startsAt: formData.get("startsAt") || undefined,

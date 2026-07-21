@@ -262,6 +262,80 @@
   gap: 8px;
 }
 
+.voterControl {
+  display: grid;
+  align-items: start;
+  gap: 10px;
+}
+
+.voterControl > :global(.fui-Button) {
+  justify-self: start;
+}
+
+.selectedVoters {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.selectedVoters li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 11px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-surface-muted);
+  gap: 8px;
+}
+
+.selectedVoters li > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.selectedVoters strong,
+.selectedVoters small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectedVoters small {
+  color: var(--app-text-muted);
+}
+
+.selectedVoters button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  place-items: center;
+}
+
+.selectedVoters button:hover {
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+
+.voterPicker {
+  padding: 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface);
+}
+
 .selectedFiles span {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -427,6 +501,10 @@
 
   .dialogForm {
     gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .selectedVoters {
     grid-template-columns: minmax(0, 1fr);
   }
 

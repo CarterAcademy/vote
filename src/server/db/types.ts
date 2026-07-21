@@ -1,11 +1,17 @@
 import type { ColumnType, Generated } from "kysely";
 
 export type UserRole = "HR" | "MEMBER";
-export type CommitteeCode = "ACADEMIC" | "TECHNICAL";
+export type CommitteeCode = string;
 export type PollStatus = "OPEN" | "CLOSED";
 export type PollCloseReason = "MANUAL" | "AUTOMATIC";
 export type VoteChoice = "APPROVE" | "REJECT" | "ABSTAIN";
 export type ReminderStatus = "PENDING" | "SENT" | "FAILED";
+export type PollNotificationType =
+  | "MANUAL"
+  | "POLL_LAUNCHED"
+  | "DEADLINE_24H"
+  | "DEADLINE_3H";
+export type VoiceRecordingStatus = "DRAFT" | "SUBMITTED";
 
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
 type GeneratedTimestamp = ColumnType<
@@ -50,7 +56,7 @@ export interface CommitteeMemberTable {
 
 export interface PollTable {
   id: string;
-  committee_id: string;
+  committee_id: string | null;
   title: string;
   candidate_name: string;
   status: PollStatus;
@@ -111,11 +117,29 @@ export interface VoteRevisionTable {
   changed_at: Timestamp;
 }
 
+export interface VoteVoiceRecordingTable {
+  id: string;
+  poll_id: string;
+  poll_voter_id: string;
+  vote_id: string | null;
+  created_by_user_id: string;
+  stored_name: string;
+  content_type: string;
+  size_bytes: number;
+  transcript: string;
+  status: VoiceRecordingStatus;
+  is_active: Generated<boolean>;
+  submitted_version: number | null;
+  created_at: GeneratedTimestamp;
+}
+
 export interface ReminderLogTable {
   id: string;
   poll_id: string;
   poll_voter_id: string;
   triggered_by_user_id: string | null;
+  notification_type: PollNotificationType;
+  scheduled_for: Timestamp;
   delivery_status: ReminderStatus;
   request_id: string | null;
   error_message: string | null;
@@ -146,6 +170,7 @@ export interface DatabaseSchema {
   poll_voters: PollVoterTable;
   votes: VoteTable;
   vote_revisions: VoteRevisionTable;
+  vote_voice_recordings: VoteVoiceRecordingTable;
   reminder_logs: ReminderLogTable;
   audit_logs: AuditLogTable;
 }

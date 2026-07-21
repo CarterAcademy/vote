@@ -6,3 +6,4 @@ export * from "./reminders";
 export * from "./stats";
 export * from "./users";
 export * from "./votes";
+export * from "./voice-recordings";

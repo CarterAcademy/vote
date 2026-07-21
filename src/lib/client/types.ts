@@ -49,6 +49,7 @@ export interface DirectoryUser {
   userId: string;
   name: string;
   title?: string;
+  department?: string;
 }
 
 export interface DirectoryPage {
@@ -110,7 +111,7 @@ export interface Poll {
   title: string;
   candidateName: string;
   committeeName: string;
-  committeeId?: string;
+  committeeId?: string | null;
   status: PollStatus;
   deadlineAt: string;
   createdAt?: string;
@@ -128,6 +129,16 @@ export interface VoteRecord {
   version: number;
   submittedAt: string;
   updatedAt: string;
+  voiceRecordings: VoiceRecording[];
+}
+
+export interface VoiceRecording {
+  id: string;
+  transcript: string;
+  contentType: string;
+  sizeBytes: number;
+  submitted: boolean;
+  createdAt: string;
 }
 
 export interface ChoiceStat {
@@ -155,6 +166,7 @@ export interface PollVoter {
   submittedAt?: string | null;
   updatedAt?: string | null;
   version?: number | null;
+  voiceRecordings: VoiceRecording[];
 }
 
 export interface AuditLog {

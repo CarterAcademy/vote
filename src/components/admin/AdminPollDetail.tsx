@@ -336,6 +336,7 @@ export function AdminPollDetail({
                           <th scope="col">部门</th>
                           <th scope="col">选择</th>
                           <th scope="col">详细评审意见</th>
+                          <th scope="col">语音原音</th>
                           <th scope="col">提交时间</th>
                         </tr>
                       </thead>
@@ -346,6 +347,23 @@ export function AdminPollDetail({
                             <td className={styles.muted}>{voter.department || "未记录"}</td>
                             <td><ChoiceBadge choice={voter.choice} /></td>
                             <td className={styles.opinion}>{voter.opinion || "未填写"}</td>
+                            <td>
+                              {voter.voiceRecordings.length > 0 ? (
+                                <div className={styles.voicePlayers}>
+                                  {voter.voiceRecordings.map((recording, index) => (
+                                    <div key={recording.id}>
+                                      <span>录音 {index + 1}</span>
+                                      <audio
+                                        controls
+                                        preload="none"
+                                        src={`/api/polls/${pollId}/voice-recordings/${recording.id}`}
+                                        aria-label={`播放${voter.name}的录音 ${index + 1}`}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : <span className={styles.muted}>无录音</span>}
+                            </td>
                             <td className={styles.muted}>{formatDateTime(voter.updatedAt ?? voter.submittedAt)}</td>
                           </tr>
                         ))}

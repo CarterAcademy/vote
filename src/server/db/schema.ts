@@ -37,11 +37,20 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
     .addColumn("updated_at", "timestamptz", (column) =>
       column.notNull().defaultTo(sql`now()`),
     )
-    .addCheckConstraint(
-      "committees_code_check",
-      sql`code in ('ACADEMIC', 'TECHNICAL')`,
-    )
     .execute();
+
+  // Older installations limited committees to two fixed codes. Committee
+  // codes are now opaque stable identifiers so administrators can create
+  // additional groups without changing the schema.
+  try {
+    await db.schema
+      .alterTable("committees")
+      .dropConstraint("committees_code_check")
+      .execute();
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== "42704" && !String(error).includes("does not exist")) throw error;
+  }
 
   await db.schema
     .createTable("committee_members")
@@ -69,7 +78,7 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
     .ifNotExists()
     .addColumn("id", "uuid", (column) => column.primaryKey())
     .addColumn("committee_id", "uuid", (column) =>
-      column.notNull().references("committees.id").onDelete("restrict"),
+      column.references("committees.id").onDelete("restrict"),
     )
     .addColumn("title", "varchar(300)", (column) => column.notNull())
     .addColumn("candidate_name", "varchar(100)", (column) => column.notNull())
@@ -98,6 +107,13 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
       sql`close_reason is null or close_reason in ('MANUAL', 'AUTOMATIC')`,
     )
     .addCheckConstraint("polls_deadline_check", sql`deadline_at > starts_at`)
+    .execute();
+
+  // A poll may use only directly selected voters and therefore have no
+  // committee. Existing installations originally required this column.
+  await db.schema
+    .alterTable("polls")
+    .alterColumn("committee_id", (column) => column.dropNotNull())
     .execute();
 
   await db.schema
@@ -199,6 +215,59 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
     .execute();
 
   await db.schema
+    .createTable("vote_voice_recordings")
+    .ifNotExists()
+    .addColumn("id", "uuid", (column) => column.primaryKey())
+    .addColumn("poll_id", "uuid", (column) =>
+      column.notNull().references("polls.id").onDelete("restrict"),
+    )
+    .addColumn("poll_voter_id", "uuid", (column) =>
+      column.notNull().references("poll_voters.id").onDelete("restrict"),
+    )
+    .addColumn("vote_id", "uuid", (column) =>
+      column.references("votes.id").onDelete("restrict"),
+    )
+    .addColumn("created_by_user_id", "uuid", (column) =>
+      column.notNull().references("users.id").onDelete("restrict"),
+    )
+    .addColumn("stored_name", "varchar(100)", (column) => column.notNull().unique())
+    .addColumn("content_type", "varchar(100)", (column) => column.notNull())
+    .addColumn("size_bytes", "integer", (column) => column.notNull())
+    .addColumn("transcript", "text", (column) => column.notNull())
+    .addColumn("status", "varchar(20)", (column) =>
+      column.notNull().defaultTo("DRAFT"),
+    )
+    .addColumn("is_active", "boolean", (column) => column.notNull().defaultTo(false))
+    .addColumn("submitted_version", "integer")
+    .addColumn("created_at", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
+    )
+    .addCheckConstraint("vote_voice_recordings_size_check", sql`size_bytes > 0`)
+    .addCheckConstraint(
+      "vote_voice_recordings_status_check",
+      sql`status in ('DRAFT', 'SUBMITTED')`,
+    )
+    .addCheckConstraint(
+      "vote_voice_recordings_submission_check",
+      sql`(status = 'DRAFT' and vote_id is null and submitted_version is null and is_active = false) or (status = 'SUBMITTED' and vote_id is not null and submitted_version is not null)`,
+    )
+    .execute();
+
+  await db.schema
+    .createIndex("vote_voice_recordings_poll_voter_idx")
+    .ifNotExists()
+    .on("vote_voice_recordings")
+    .columns(["poll_id", "poll_voter_id"])
+    .execute();
+
+  await db.schema
+    .createIndex("vote_voice_recordings_active_vote_idx")
+    .ifNotExists()
+    .on("vote_voice_recordings")
+    .columns(["vote_id", "is_active"])
+    .execute();
+
+  await db.schema
     .createTable("reminder_logs")
     .ifNotExists()
     .addColumn("id", "uuid", (column) => column.primaryKey())
@@ -210,6 +279,12 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
     )
     .addColumn("triggered_by_user_id", "uuid", (column) =>
       column.references("users.id").onDelete("restrict"),
+    )
+    .addColumn("notification_type", "varchar(30)", (column) =>
+      column.notNull().defaultTo("MANUAL"),
+    )
+    .addColumn("scheduled_for", "timestamptz", (column) =>
+      column.notNull().defaultTo(sql`now()`),
     )
     .addColumn("delivery_status", "varchar(20)", (column) => column.notNull())
     .addColumn("request_id", "varchar(200)")
@@ -223,6 +298,18 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
       sql`delivery_status in ('PENDING', 'SENT', 'FAILED')`,
     )
     .execute();
+
+  // Upgrade reminder logs created by releases that only supported manual
+  // reminders. Defaults preserve their original meaning and make the migration
+  // safe for a populated production database.
+  await sql`
+    alter table reminder_logs
+      add column if not exists notification_type varchar(30) not null default 'MANUAL'
+  `.execute(db);
+  await sql`
+    alter table reminder_logs
+      add column if not exists scheduled_for timestamptz not null default now()
+  `.execute(db);
 
   await db.schema
     .createTable("audit_logs")
@@ -272,6 +359,14 @@ export async function migrateDatabase(db: Kysely<DatabaseSchema>): Promise<void>
       .ifNotExists()
       .on("audit_logs")
       .columns(["entity_type", "entity_id", "created_at"])
+      .execute(),
+    db.schema
+      .createIndex("reminder_logs_delivery_unique_idx")
+      .ifNotExists()
+      .unique()
+      .on("reminder_logs")
+      .columns(["poll_voter_id", "notification_type", "scheduled_for"])
+      .where("notification_type", "!=", "MANUAL")
       .execute(),
   ]);
 }

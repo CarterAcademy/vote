@@ -84,11 +84,21 @@ DINGTALK_CLIENT_ID=<实际值>
 DINGTALK_CLIENT_SECRET=<实际值>
 DINGTALK_ROBOT_CODE=<按实际能力填写>
 DINGTALK_APP_BASE_URL=https://<正式域名>
+INTERNAL_LLM_TRANSCRIPTIONS_URL=https://llm.zgci.org/hub/v1/audio/transcriptions
+INTERNAL_LLM_TRANSCRIBE_MODEL=qwen-asr
+INTERNAL_LLM_API_KEY=<网关需要鉴权时填写；否则留空>
+OPENROUTER_CHAT_COMPLETIONS_URL=https://openrouter.ai/api/v1/chat/completions
+OPENROUTER_API_KEY=<内部转写失败时使用的备用服务密钥>
+OPENROUTER_AUDIO_TRANSCRIBE_MODEL=google/gemini-2.5-flash
 BACKUP_RETENTION_DAYS=3650
 FILE_STORAGE_DIR=/app/uploads
 ```
 
-投票附件保存在应用服务器的私有持久化目录中，不应由 nginx 或静态文件目录直接暴露。Compose 使用 `vote_uploads` 命名卷；宿主机发布脚本使用 `/srv/committee-vote/uploads`，并把每个 release 的 `uploads` 链接到该目录。附件目录需要纳入与数据库一致的备份、恢复和访问控制流程。
+语音转文字请求由应用服务端代理到内部模型网关。识别成功后，原始录音写入 `FILE_STORAGE_DIR/voice-recordings`，元数据与转写正文写入数据库；录音不会进入公开静态目录。播放接口要求登录，并仅允许录音本人或 HR 管理员访问当前提交的录音。上线前需确认模型网关的数据留存、日志脱敏和访问控制符合评审意见的敏感级别。
+
+当内部模型返回 5xx、超时或连接失败时，应用可使用 `OPENROUTER_*` 配置回退到支持音频输入的 Chat Completions 模型。OpenRouter 回退会把原始录音发送到外部服务，启用前需完成相应的数据出境、留存和供应商合规评估。未配置内部模型时，只要 OpenRouter 地址和密钥完整，前端也会把语音能力标记为可用。
+
+投票附件和语音原音保存在应用服务器的私有持久化目录中，不应由 nginx 或静态文件目录直接暴露。Compose 使用 `vote_uploads` 命名卷；宿主机发布脚本使用 `/srv/committee-vote/uploads`，并把每个 release 的 `uploads` 链接到该目录。该目录需要纳入与数据库一致的备份、恢复、保留期和访问控制流程。
 
 首次部署或升级：
 
@@ -124,9 +134,9 @@ http://10.1.131.51/investigation-summary.html
 - 不记录 Cookie、Authorization、临时 `authCode`、意见正文和应用密钥。
 - 管理接口仍需应用层权限；不能只依靠一个“隐藏 URL”。
 
-## 6. 自动关闭定时任务
+## 6. 自动提醒与自动关闭定时任务
 
-推荐每分钟调用一次，接口必须幂等：
+推荐每分钟调用一次，接口必须幂等。该维护请求会先向尚未投票的评审人发送截止前 24 小时和截止前 3 小时提醒，再关闭已经到期的投票：
 
 ```bash
 curl --fail --silent --show-error \
@@ -149,6 +159,8 @@ MAINTENANCE_SECRET='<与应用相同的真实值>'
 ```
 
 文件需 `root:root 0600`。日志由 logrotate 管理，且接口响应不得包含敏感数据。监控应在连续 2～3 次失败时告警。无论 cron 是否正常，提交接口都必须按 `deadline_at` 拒绝过期提交。
+
+确认发起投票时，应用会立即向全部选定评审人发送一次通知。自动提醒使用数据库唯一约束去重，因此 cron 重复调用或多个实例同时调用不会重复发送同一提醒。若投票创建时间已经晚于某个提醒时点（例如距离截止不足 24 小时才创建），不会补发该条过时提醒；仍会在后续有效提醒时点发送通知。
 
 ## 7. 每日 `pg_dump` 备份
 

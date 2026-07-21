@@ -35,13 +35,15 @@ export function EmptyState({
   title,
   description,
   action,
+  align = "center",
 }: {
   title: string;
   description: string;
   action?: React.ReactNode;
+  align?: "left" | "center";
 }) {
   return (
-    <div className={`${styles.state} ${styles.stateCompact}`}>
+    <div className={`${styles.state} ${styles.stateCompact} ${align === "left" ? styles.stateLeft : ""}`}>
       <span className={styles.iconFrame} aria-hidden="true"><BoxRegular /></span>
       <h2>{title}</h2>
       <p>{description}</p>
@@ -68,4 +70,3 @@ export function ErrorState({
     </div>
   );
 }
-

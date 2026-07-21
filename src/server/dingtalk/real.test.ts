@@ -29,6 +29,19 @@ describe("RealDingTalkGateway web login", () => {
       )
       .mockResolvedValueOnce(
         jsonResponse({ errcode: 0, result: { userid: "user-1" } }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          errcode: 0,
+          result: {
+            userid: "user-1",
+            name: "测试用户",
+            dept_id_list: [42],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ errcode: 0, result: { dept_id: 42, name: "研发中心" } }),
       );
     const gateway = new RealDingTalkGateway({
       appKey: "client-id",
@@ -41,6 +54,7 @@ describe("RealDingTalkGateway web login", () => {
       userId: "user-1",
       name: "测试用户",
       unionId: "union-1",
+      department: "研发中心",
     });
 
     expect(fetchImpl).toHaveBeenNthCalledWith(
@@ -69,6 +83,16 @@ describe("RealDingTalkGateway web login", () => {
       4,
       "https://oapi.dingtalk.com/topapi/user/getbyunionid?access_token=app-token",
       expect.objectContaining({ body: JSON.stringify({ unionid: "union-1" }) }),
+    );
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      5,
+      "https://oapi.dingtalk.com/topapi/v2/user/get?access_token=app-token",
+      expect.objectContaining({ body: JSON.stringify({ userid: "user-1" }) }),
+    );
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      6,
+      "https://oapi.dingtalk.com/topapi/v2/department/get?access_token=app-token",
+      expect.objectContaining({ body: JSON.stringify({ dept_id: 42 }) }),
     );
   });
 
@@ -185,11 +209,14 @@ describe("RealDingTalkGateway directory", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           userList: [
-            { userid: "user-1", name: "张三" },
-            { userid: "user-2", nickname: "张老师" },
+            { userid: "user-1", name: "张三", deptIdList: [42] },
+            { userid: "user-2", nickname: "张老师", title: "研究员", deptIdList: [42] },
           ],
           unauthorizedUserIdList: [],
         }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ errcode: 0, result: { dept_id: 42, name: "研发中心" } }),
       );
     const gateway = new RealDingTalkGateway({
       appKey: "client-id",
@@ -200,8 +227,8 @@ describe("RealDingTalkGateway directory", () => {
     await expect(gateway.searchDirectoryUsers("张", 20, 10)).resolves.toEqual({
       departments: [],
       users: [
-        { userId: "user-2", name: "张老师" },
-        { userId: "user-1", name: "张三" },
+        { userId: "user-2", name: "张老师", title: "研究员", department: "研发中心" },
+        { userId: "user-1", name: "张三", department: "研发中心" },
       ],
       hasMore: true,
       nextCursor: 30,

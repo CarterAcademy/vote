@@ -12,6 +12,10 @@
   min-height: 180px;
 }
 
+.stateLeft {
+  margin-inline: 0;
+}
+
 .iconFrame {
   display: grid;
   width: 44px;
@@ -61,4 +65,3 @@
   background: var(--app-surface);
   gap: 12px;
 }
-

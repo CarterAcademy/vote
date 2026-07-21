@@ -305,10 +305,9 @@ export async function authenticateDingTalkCode(
   authCode: string,
   gateway: DingTalkGateway = getDingTalkGateway(),
 ): Promise<SessionUser> {
-  let dingtalkUserId: string;
+  let identity: Awaited<ReturnType<DingTalkGateway["exchangeAuthCode"]>>;
   try {
-    const identity = await gateway.exchangeAuthCode(authCode);
-    dingtalkUserId = identity.userId;
+    identity = await gateway.exchangeAuthCode(authCode);
   } catch (error) {
     throw new DomainError(
       "DINGTALK_ERROR",
@@ -317,7 +316,7 @@ export async function authenticateDingTalkCode(
     );
   }
 
-  const user = await getUserByDingTalkUserId(dingtalkUserId);
+  const user = await getUserByDingTalkUserId(identity.userId);
   if (!user) {
     throw new DomainError(
       "FORBIDDEN",
@@ -325,17 +324,29 @@ export async function authenticateDingTalkCode(
     );
   }
 
-  return user;
+  if (identity.name || identity.department) {
+    const db = await ensureDatabaseReady();
+    await db
+      .updateTable("users")
+      .set({
+        ...(identity.name ? { name: identity.name } : {}),
+        ...(identity.department ? { department: identity.department } : {}),
+        updated_at: new Date(),
+      })
+      .where("id", "=", user.id)
+      .execute();
+  }
+
+  return identity.name ? { ...user, name: identity.name } : user;
 }
 
 export async function authenticateDingTalkWebCode(
   authCode: string,
   gateway: DingTalkGateway = getDingTalkGateway(),
 ): Promise<SessionUser> {
-  let dingtalkUserId: string;
+  let identity: Awaited<ReturnType<DingTalkGateway["exchangeWebAuthCode"]>>;
   try {
-    const identity = await gateway.exchangeWebAuthCode(authCode);
-    dingtalkUserId = identity.userId;
+    identity = await gateway.exchangeWebAuthCode(authCode);
   } catch (error) {
     throw new DomainError(
       "DINGTALK_ERROR",
@@ -344,7 +355,7 @@ export async function authenticateDingTalkWebCode(
     );
   }
 
-  const user = await getUserByDingTalkUserId(dingtalkUserId);
+  const user = await getUserByDingTalkUserId(identity.userId);
   if (!user) {
     throw new DomainError(
       "FORBIDDEN",
@@ -352,5 +363,18 @@ export async function authenticateDingTalkWebCode(
     );
   }
 
-  return user;
+  if (identity.name || identity.department) {
+    const db = await ensureDatabaseReady();
+    await db
+      .updateTable("users")
+      .set({
+        ...(identity.name ? { name: identity.name } : {}),
+        ...(identity.department ? { department: identity.department } : {}),
+        updated_at: new Date(),
+      })
+      .where("id", "=", user.id)
+      .execute();
+  }
+
+  return identity.name ? { ...user, name: identity.name } : user;
 }

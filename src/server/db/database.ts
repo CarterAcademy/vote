@@ -93,6 +93,23 @@ async function provisionDevelopmentAdmin(
       }),
     )
     .execute();
+
+  await db
+    .insertInto("committees")
+    .values([
+      {
+        id: "10000000-0000-4000-8000-000000000001",
+        code: "ACADEMIC",
+        name: "学术委员会",
+      },
+      {
+        id: "10000000-0000-4000-8000-000000000002",
+        code: "TECHNICAL",
+        name: "技术委员会",
+      },
+    ])
+    .onConflict((conflict) => conflict.column("code").doNothing())
+    .execute();
 }
 
 export function getDatabase(): Kysely<DatabaseSchema> {

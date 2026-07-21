@@ -116,6 +116,18 @@ export PATH="${node_dir}:${PATH}"
 cd "${remote_workspace}"
 "${node_dir}/npm" ci --silent
 
+set -a
+# shellcheck disable=SC1090
+source "${env_file}"
+set +a
+
+echo "Creating a pre-migration database backup..."
+BACKUP_DIR="${remote_root}/backups" \
+  "${node_dir}/node" "${remote_root}/current/scripts/backup-db.mjs"
+
+echo "Applying database migrations..."
+"${node_dir}/npm" run db:migrate
+
 if [[ -f "${pid_file}" ]]; then
   previous_pid="$(cat "${pid_file}")"
   if [[ "${previous_pid}" =~ ^[0-9]+$ ]] && kill -0 "${previous_pid}" 2>/dev/null; then
@@ -141,10 +153,6 @@ then
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1090
-source "${env_file}"
-set +a
 export NODE_ENV=development
 export DINGTALK_MOCK_ENABLED=false
 export ALLOW_INSECURE_PRODUCTION_MOCK=false

@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
+import type { Transaction } from "kysely";
 
 import type { SessionUser } from "@/types";
 
-import { ensureDatabaseReady, type VoteChoice } from "../db";
+import { ensureDatabaseReady, type DatabaseSchema, type VoteChoice } from "../db";
 import { voteSchema, type VoteInput } from "../validation";
 import { toIso, writeAuditLog } from "./common";
 import { DomainError } from "./errors";
+import type { VoiceRecordingDto } from "./voice-recordings";
 
 export interface VoteDto {
   id: string;
@@ -15,6 +17,43 @@ export interface VoteDto {
   version: number;
   submittedAt: string;
   updatedAt: string;
+  voiceRecordings: VoiceRecordingDto[];
+}
+
+async function validateSelectedRecordings(
+  transaction: Transaction<DatabaseSchema>,
+  ids: string[],
+  pollId: string,
+  pollVoterId: string,
+  actorId: string,
+  existingVoteId?: string,
+) {
+  if (ids.length === 0) return [];
+  const rows = await transaction
+    .selectFrom("vote_voice_recordings")
+    .selectAll()
+    .where("id", "in", ids)
+    .where("poll_id", "=", pollId)
+    .where("poll_voter_id", "=", pollVoterId)
+    .where("created_by_user_id", "=", actorId)
+    .forUpdate()
+    .execute();
+  const valid = rows.filter((row) => row.status === "DRAFT" || row.vote_id === existingVoteId);
+  if (valid.length !== ids.length) {
+    throw new DomainError("VALIDATION_ERROR", "部分录音不存在、已失效或不属于当前投票");
+  }
+  return valid;
+}
+
+function recordingDtos(rows: Awaited<ReturnType<typeof validateSelectedRecordings>>): VoiceRecordingDto[] {
+  return rows.map((row) => ({
+    id: row.id,
+    transcript: row.transcript,
+    contentType: row.content_type,
+    sizeBytes: Number(row.size_bytes),
+    submitted: true,
+    createdAt: new Date(row.created_at).toISOString(),
+  }));
 }
 
 export async function castOrUpdateVote(
@@ -68,6 +107,13 @@ export async function castOrUpdateVote(
 
     if (!existing) {
       const voteId = randomUUID();
+      const selectedRecordings = await validateSelectedRecordings(
+        transaction,
+        parsed.voiceRecordingIds,
+        pollId,
+        eligibility.poll_voter_id,
+        actor.id,
+      );
       await transaction
         .insertInto("votes")
         .values({
@@ -81,6 +127,13 @@ export async function castOrUpdateVote(
           updated_at: now,
         })
         .execute();
+      if (selectedRecordings.length > 0) {
+        await transaction
+          .updateTable("vote_voice_recordings")
+          .set({ vote_id: voteId, status: "SUBMITTED", is_active: true, submitted_version: 1 })
+          .where("id", "in", selectedRecordings.map((recording) => recording.id))
+          .execute();
+      }
       await transaction
         .insertInto("vote_revisions")
         .values({
@@ -105,6 +158,7 @@ export async function castOrUpdateVote(
           voterName: eligibility.voter_name,
           choice: parsed.choice,
           version: 1,
+          voiceRecordingCount: selectedRecordings.length,
         },
         createdAt: now,
       });
@@ -117,10 +171,19 @@ export async function castOrUpdateVote(
         version: 1,
         submittedAt: now.toISOString(),
         updatedAt: now.toISOString(),
+        voiceRecordings: recordingDtos(selectedRecordings),
       };
     }
 
     const nextVersion = existing.version + 1;
+    const selectedRecordings = await validateSelectedRecordings(
+      transaction,
+      parsed.voiceRecordingIds,
+      pollId,
+      eligibility.poll_voter_id,
+      actor.id,
+      existing.id,
+    );
     await transaction
       .updateTable("votes")
       .set({
@@ -146,6 +209,24 @@ export async function castOrUpdateVote(
         changed_at: now,
       })
       .execute();
+    await transaction
+      .updateTable("vote_voice_recordings")
+      .set({ is_active: false })
+      .where("vote_id", "=", existing.id)
+      .where("is_active", "=", true)
+      .execute();
+    if (selectedRecordings.length > 0) {
+      await transaction
+        .updateTable("vote_voice_recordings")
+        .set({
+          vote_id: existing.id,
+          status: "SUBMITTED",
+          is_active: true,
+          submitted_version: nextVersion,
+        })
+        .where("id", "in", selectedRecordings.map((recording) => recording.id))
+        .execute();
+    }
     await writeAuditLog(transaction, {
       actorUserId: actor.id,
       action: "VOTE_UPDATED",
@@ -157,6 +238,7 @@ export async function castOrUpdateVote(
         previousChoice: existing.choice,
         choice: parsed.choice,
         version: nextVersion,
+        voiceRecordingCount: selectedRecordings.length,
       },
       createdAt: now,
     });
@@ -169,6 +251,7 @@ export async function castOrUpdateVote(
       version: nextVersion,
       submittedAt: toIso(existing.submitted_at),
       updatedAt: now.toISOString(),
+      voiceRecordings: recordingDtos(selectedRecordings),
     };
   });
 }

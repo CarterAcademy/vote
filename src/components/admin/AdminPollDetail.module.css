@@ -285,7 +285,7 @@
 
 .table {
   width: 100%;
-  min-width: 800px;
+  min-width: 1080px;
   border-collapse: collapse;
 }
 
@@ -310,6 +310,27 @@
   max-width: 420px;
   line-height: 1.62;
   white-space: pre-wrap;
+}
+
+.voicePlayers {
+  display: grid;
+  min-width: 250px;
+  gap: 8px;
+}
+
+.voicePlayers > div {
+  display: grid;
+  gap: 3px;
+}
+
+.voicePlayers span {
+  color: var(--app-text-muted);
+  font-size: 11px;
+}
+
+.voicePlayers audio {
+  width: 250px;
+  height: 34px;
 }
 
 .muted {
@@ -440,4 +461,3 @@
     flex-direction: column-reverse;
   }
 }
-

@@ -105,11 +105,20 @@ DINGTALK_CLIENT_ID=<内部应用实际 ClientId/AppKey>
 DINGTALK_CLIENT_SECRET=<内部应用实际 ClientSecret/AppSecret>
 DINGTALK_ROBOT_CODE=<如所选私聊能力要求，则填写实际 robotCode>
 DINGTALK_APP_BASE_URL=https://vote.example.com
+INTERNAL_LLM_TRANSCRIPTIONS_URL=https://llm.zgci.org/hub/v1/audio/transcriptions
+INTERNAL_LLM_TRANSCRIBE_MODEL=qwen-asr
+INTERNAL_LLM_API_KEY=<网关需要鉴权时填写；否则留空>
+OPENROUTER_CHAT_COMPLETIONS_URL=https://openrouter.ai/api/v1/chat/completions
+OPENROUTER_API_KEY=<内部转写失败时使用的备用服务密钥>
+OPENROUTER_AUDIO_TRANSCRIBE_MODEL=google/gemini-2.5-flash
 MAINTENANCE_SECRET=<独立的高强度随机值>
 BACKUP_DIR=/var/backups/committee-vote
 BACKUP_RETENTION_DAYS=<按单位制度填写，例如 3650>
 FILE_STORAGE_DIR=<私有持久化附件目录；宿主机发布脚本可省略>
 ```
+
+委员语音意见会转写为可编辑文字；原音保存在 `FILE_STORAGE_DIR/voice-recordings`，不由静态服务器公开。投票提交后，HR 可在记名投票明细中通过鉴权接口直接播放。
+语音转写优先使用内部模型；内部服务发生 5xx 或网络故障时，才会把录音发送到配置的 OpenRouter 音频模型。若内部服务返回“未识别到语音”等业务错误，不会触发外部回退。
 
 不要把 `.env*`、数据库口令、钉钉应用密钥或维护密钥提交到仓库。建议由部署平台的 Secret Manager 注入。完整步骤见[部署与运维文档](docs/deployment-operations.md)。
 
@@ -143,7 +152,7 @@ npm run db:provision -- --file /secure/path/organization.json --confirm
 ## 维护接口
 
 - `GET /api/health`：健康检查；不得返回秘密或个人数据。
-- `POST /api/internal/maintenance/close-expired`：关闭已过截止时间但仍为 OPEN 的投票，请求头为 `x-maintenance-secret`。
+- `POST /api/internal/maintenance/close-expired`：发送截止前 24 小时/3 小时自动提醒，并关闭已过截止时间但仍为 OPEN 的投票；请求头为 `x-maintenance-secret`，接口可幂等重试。
 - `POST /api/polls/:id/remind`：HR 一键提醒，由服务端重新计算未投名单；客户端不能传任意收件人。
 - `POST /api/auth/dingtalk`：H5 将钉钉客户端取得的临时 `authCode` 交给服务端换取身份会话。
 

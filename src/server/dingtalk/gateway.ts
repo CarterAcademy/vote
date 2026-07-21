@@ -2,6 +2,7 @@ export interface DingTalkIdentity {
   userId: string;
   name?: string;
   unionId?: string;
+  department?: string;
 }
 
 export interface DirectReminderInput {
@@ -25,6 +26,7 @@ export interface DingTalkDirectoryUser {
   userId: string;
   name: string;
   title?: string;
+  department?: string;
 }
 
 export interface DingTalkDirectoryPage {
@@ -37,6 +39,7 @@ export interface DingTalkDirectoryPage {
 export interface DingTalkGateway {
   exchangeAuthCode(authCode: string): Promise<DingTalkIdentity>;
   exchangeWebAuthCode(authCode: string): Promise<DingTalkIdentity>;
+  getDirectoryUser(userId: string): Promise<DingTalkDirectoryUser | null>;
   searchDirectoryUsers(
     queryWord: string,
     offset?: number,

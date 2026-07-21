@@ -17,8 +17,10 @@ import {
 } from "../validation";
 import { assertHr, optionalIso, toIso, writeAuditLog } from "./common";
 import { DomainError } from "./errors";
+import { sendPollLaunchNotifications } from "./reminders";
 import { calculateVoteStats, type PollStats } from "./stats";
 import type { PreparedPollAttachment } from "../files/attachments";
+import { listActiveVoiceRecordings, type VoiceRecordingDto } from "./voice-recordings";
 
 export interface PollAttachmentDto {
   id: string;
@@ -34,14 +36,14 @@ export interface PollAttachmentRecord extends PollAttachmentDto {
 
 export interface CommitteeDto {
   id: string;
-  code: "ACADEMIC" | "TECHNICAL";
+  code: string;
   name: string;
   memberCount: number;
 }
 
 export interface PollDto {
   id: string;
-  committeeId: string;
+  committeeId: string | null;
   committeeName: string;
   title: string;
   candidateName: string;
@@ -120,6 +122,7 @@ export interface HrVoterDto {
   version: number | null;
   submittedAt: string | null;
   updatedAt: string | null;
+  voiceRecordings: VoiceRecordingDto[];
 }
 
 export interface AuditLogDto {
@@ -146,6 +149,7 @@ export interface MemberPollDetail {
     version: number;
     submittedAt: string;
     updatedAt: string;
+    voiceRecordings: VoiceRecordingDto[];
   } | null;
   canEdit: boolean;
 }
@@ -169,8 +173,8 @@ function effectiveStatus(
 function mapPoll(
   row: {
     id: string;
-    committee_id: string;
-    committee_name: string;
+    committee_id: string | null;
+    committee_name: string | null;
     title: string;
     candidate_name: string;
     status: PollStatus;
@@ -188,7 +192,7 @@ function mapPoll(
   return {
     id: row.id,
     committeeId: row.committee_id,
-    committeeName: row.committee_name,
+    committeeName: row.committee_name ?? "自选评审人",
     title: row.title,
     candidateName: row.candidate_name,
     status,
@@ -267,33 +271,79 @@ export async function createPoll(
   const startsAt = parsed.startsAt ?? new Date();
 
   const row = await db.transaction().execute(async (transaction) => {
-    const committee = await transaction
-      .selectFrom("committees")
-      .select(["id", "name"])
-      .where("id", "=", parsed.committeeId)
-      .executeTakeFirst();
-    if (!committee) {
+    const committee = parsed.committeeId
+      ? await transaction
+          .selectFrom("committees")
+          .select(["id", "name"])
+          .where("id", "=", parsed.committeeId)
+          .executeTakeFirst()
+      : null;
+    if (parsed.committeeId && !committee) {
       throw new DomainError("NOT_FOUND", "委员会不存在");
     }
 
-    const members = await transaction
-      .selectFrom("committee_members")
-      .innerJoin("users", "users.id", "committee_members.user_id")
-      .select([
-        "users.id as user_id",
-        "users.dingtalk_user_id",
-        "users.name",
-        "users.department",
-        "committee_members.position",
-        "committee_members.display_order",
-      ])
-      .where("committee_members.committee_id", "=", parsed.committeeId)
-      .where("committee_members.is_active", "=", true)
-      .where("users.is_active", "=", true)
-      .orderBy("committee_members.display_order", "asc")
-      .execute();
-    if (members.length === 0) {
-      throw new DomainError("NO_ACTIVE_MEMBERS", "该委员会没有可参与投票的委员");
+    const committeeMembers = parsed.committeeId
+      ? await transaction
+          .selectFrom("committee_members")
+          .innerJoin("users", "users.id", "committee_members.user_id")
+          .select([
+            "users.id as user_id",
+            "users.dingtalk_user_id",
+            "users.name",
+            "users.department",
+            "committee_members.position",
+            "committee_members.display_order",
+          ])
+          .where("committee_members.committee_id", "=", parsed.committeeId)
+          .where("committee_members.is_active", "=", true)
+          .where("users.is_active", "=", true)
+          .orderBy("committee_members.display_order", "asc")
+          .execute()
+      : [];
+
+    const mergedVoters = new Map(committeeMembers.map((member) => [member.dingtalk_user_id, member]));
+    for (const directVoter of parsed.directVoters) {
+      let user = await transaction
+        .selectFrom("users")
+        .select(["id", "department"])
+        .where("dingtalk_user_id", "=", directVoter.dingtalkUserId)
+        .executeTakeFirst();
+
+      if (!user) {
+        user = {
+          id: randomUUID(),
+          department: directVoter.department?.trim() || null,
+        };
+        await transaction.insertInto("users").values({
+          id: user.id,
+          dingtalk_user_id: directVoter.dingtalkUserId,
+          name: directVoter.name,
+          department: user.department,
+          role: "MEMBER",
+        }).execute();
+      } else {
+        await transaction.updateTable("users").set({
+          name: directVoter.name,
+          department: directVoter.department?.trim() || user.department,
+          is_active: true,
+          updated_at: new Date(),
+        }).where("id", "=", user.id).execute();
+      }
+
+      if (!mergedVoters.has(directVoter.dingtalkUserId)) {
+        mergedVoters.set(directVoter.dingtalkUserId, {
+          user_id: user.id,
+          dingtalk_user_id: directVoter.dingtalkUserId,
+          name: directVoter.name,
+          department: directVoter.department?.trim() || user.department,
+          position: directVoter.position?.trim() || "评审人",
+          display_order: mergedVoters.size,
+        });
+      }
+    }
+    const voters = Array.from(mergedVoters.values());
+    if (voters.length === 0) {
+      throw new DomainError("NO_ACTIVE_MEMBERS", "请至少选择一名可参与投票的评审人");
     }
 
     await transaction
@@ -332,7 +382,7 @@ export async function createPoll(
     await transaction
       .insertInto("poll_voters")
       .values(
-        members.map((member) => ({
+        voters.map((member, index) => ({
           id: randomUUID(),
           poll_id: pollId,
           user_id: member.user_id,
@@ -340,7 +390,7 @@ export async function createPoll(
           voter_name: member.name,
           department: member.department,
           position: member.position,
-          display_order: member.display_order,
+          display_order: index + 1,
         })),
       )
       .execute();
@@ -352,18 +402,19 @@ export async function createPoll(
       entityId: pollId,
       details: {
         committeeId: parsed.committeeId,
-        committeeName: committee.name,
+        committeeName: committee?.name ?? null,
+        directVoterCount: parsed.directVoters.length,
         title: parsed.title,
         candidateName: parsed.candidateName,
         deadlineAt: parsed.deadlineAt.toISOString(),
-        voterCount: members.length,
+        voterCount: voters.length,
         attachments: attachments.map((attachment) => attachment.originalName),
       },
     });
 
     return transaction
       .selectFrom("polls")
-      .innerJoin("committees", "committees.id", "polls.committee_id")
+      .leftJoin("committees", "committees.id", "polls.committee_id")
       .innerJoin("users as creators", "creators.id", "polls.created_by_user_id")
       .select([
         "polls.id",
@@ -383,12 +434,29 @@ export async function createPoll(
       .executeTakeFirstOrThrow();
   });
 
-  return mapPoll(row, new Date(), attachments.map((attachment) => ({
+  const poll = mapPoll(row, new Date(), attachments.map((attachment) => ({
     id: attachment.id,
     name: attachment.originalName,
     contentType: attachment.contentType,
     sizeBytes: attachment.sizeBytes,
   })));
+  try {
+    await sendPollLaunchNotifications(poll.id, new Date(row.created_at));
+  } catch (error) {
+    // The poll is already committed at this point. A notification subsystem
+    // outage must not turn a successful launch into a misleading API failure
+    // that could cause the initiator to create a duplicate poll.
+    await writeAuditLog(db, {
+      actorUserId: actor.id,
+      action: "POLL_LAUNCH_NOTIFICATIONS_FAILED",
+      entityType: "POLL",
+      entityId: poll.id,
+      details: {
+        error: error instanceof Error ? error.message : "钉钉通知发送失败",
+      },
+    }).catch(() => undefined);
+  }
+  return poll;
 }
 
 export async function listPolls(
@@ -400,7 +468,7 @@ export async function listPolls(
 
   let base = db
     .selectFrom("polls")
-    .innerJoin("committees", "committees.id", "polls.committee_id")
+    .leftJoin("committees", "committees.id", "polls.committee_id")
     .innerJoin("users as creators", "creators.id", "polls.created_by_user_id")
     .$if(actor.role === "MEMBER" || query.scope === "ELIGIBLE", (builder) =>
       builder
@@ -500,7 +568,7 @@ async function getBasePoll(pollId: string) {
   const db = await ensureDatabaseReady();
   return db
     .selectFrom("polls")
-    .innerJoin("committees", "committees.id", "polls.committee_id")
+    .leftJoin("committees", "committees.id", "polls.committee_id")
     .innerJoin("users as creators", "creators.id", "polls.created_by_user_id")
     .select([
       "polls.id",
@@ -547,6 +615,7 @@ export async function getPollDetail(
       .selectFrom("poll_voters")
       .leftJoin("votes", "votes.poll_voter_id", "poll_voters.id")
       .select([
+        "poll_voters.id as poll_voter_id",
         "votes.id as vote_id",
         "votes.choice",
         "votes.opinion",
@@ -560,6 +629,7 @@ export async function getPollDetail(
     if (!voter) {
       throw new DomainError("NOT_ELIGIBLE", "您不在本次投票的委员名单中");
     }
+    const recordings = await listActiveVoiceRecordings(pollId);
 
     return {
       poll,
@@ -577,6 +647,7 @@ export async function getPollDetail(
               version: voter.version,
               submittedAt: toIso(voter.submitted_at),
               updatedAt: toIso(voter.updated_at),
+              voiceRecordings: recordings.get(voter.poll_voter_id) ?? [],
             }
           : null,
     };
@@ -586,11 +657,13 @@ export async function getPollDetail(
   const voters = await db
     .selectFrom("poll_voters")
     .leftJoin("votes", "votes.poll_voter_id", "poll_voters.id")
+    .leftJoin("users", "users.id", "poll_voters.user_id")
     .select([
       "poll_voters.id",
       "poll_voters.user_id",
       "poll_voters.voter_name",
       "poll_voters.department",
+      "users.department as current_department",
       "poll_voters.position",
       "votes.id as vote_id",
       "votes.choice",
@@ -617,6 +690,7 @@ export async function getPollDetail(
     .where("audit_logs.entity_id", "=", pollId)
     .orderBy("audit_logs.created_at", "desc")
     .execute();
+  const recordings = await listActiveVoiceRecordings(pollId);
 
   const choices = voters
     .map((voter) => voter.choice)
@@ -629,7 +703,7 @@ export async function getPollDetail(
       id: voter.id,
       userId: voter.user_id,
       name: voter.voter_name,
-      department: voter.department,
+      department: voter.department ?? voter.current_department,
       position: voter.position,
       hasVoted: Boolean(voter.vote_id),
       choice: voter.choice,
@@ -637,6 +711,7 @@ export async function getPollDetail(
       version: voter.version,
       submittedAt: voter.submitted_at ? toIso(voter.submitted_at) : null,
       updatedAt: voter.updated_at ? toIso(voter.updated_at) : null,
+      voiceRecordings: recordings.get(voter.id) ?? [],
     })),
     auditLogs: auditRows.map((audit) => ({
       id: audit.id,

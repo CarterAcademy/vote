@@ -25,6 +25,10 @@ export class MockDingTalkGateway implements DingTalkGateway {
     return this.exchangeAuthCode(authCode);
   }
 
+  async getDirectoryUser(): Promise<null> {
+    return null;
+  }
+
   async listDirectory(): Promise<DingTalkDirectoryPage> {
     return { departments: [], users: [], hasMore: false };
   }

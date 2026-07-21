@@ -150,7 +150,7 @@ export function DirectoryPersonPicker({
       const pageUsers = page.users.map((user: ApiDirectoryUser) => ({
         dingtalkUserId: user.userId,
         name: user.name,
-        department: null,
+        department: user.department ?? null,
         ...(user.title ? { title: user.title } : {}),
       }));
       setSearchUsers((current) => append ? [...current, ...pageUsers] : pageUsers);

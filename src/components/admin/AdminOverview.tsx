@@ -30,11 +30,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { formatCompactDate, isPast, localDateTimeInput, percent } from "@/lib/client/format";
 import type { Committee, Initiator, PollDashboardStats, PollListResponse, PollSummary } from "@/lib/client/types";
+import { useSession } from "@/lib/client/session";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { PollStatusBadge } from "@/components/StatusBadges";
 import { PollAttachmentLinks } from "@/components/PollAttachmentLinks";
 import { InitiatorManagement } from "./InitiatorManagement";
+import { DirectoryPersonPicker, type DirectoryPerson } from "./DirectoryPersonPicker";
 import styles from "./AdminOverview.module.css";
 
 interface CreateForm {
@@ -72,6 +74,7 @@ export function AdminOverview({
   initialDashboardStats?: PollDashboardStats;
 }) {
   const router = useRouter();
+  const { mockMode = false, corpId } = useSession();
   const [polls, setPolls] = useState<PollSummary[]>(initialPolls.items);
   const [committees, setCommittees] = useState<Committee[]>(initialCommittees);
   const [query, setQuery] = useState("");
@@ -86,6 +89,8 @@ export function AdminOverview({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<CreateForm>({ ...emptyForm, deadlineAt: defaultDeadline() });
   const [formError, setFormError] = useState<string | null>(null);
+  const [directVoters, setDirectVoters] = useState<DirectoryPerson[]>([]);
+  const [voterPickerOpen, setVoterPickerOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -134,10 +139,6 @@ export function AdminOverview({
     try {
       const committeeItems = await api.committees();
       setCommittees(committeeItems);
-      setForm((current) => ({
-        ...current,
-        committeeId: current.committeeId || committeeItems[0]?.id || "",
-      }));
     } catch (requestError) {
       setCommitteeError(errorMessage(requestError));
     }
@@ -172,18 +173,19 @@ export function AdminOverview({
   const invalid = attempted && {
     candidateName: !form.candidateName.trim(),
     title: !form.title.trim(),
-    committeeId: !form.committeeId,
+    voters: !form.committeeId && directVoters.length === 0,
     deadlineAt: !form.deadlineAt || new Date(form.deadlineAt).getTime() <= Date.now(),
   };
 
   function openCreateDialog() {
     setForm({
       ...emptyForm,
-      committeeId: committees[0]?.id ?? "",
       deadlineAt: defaultDeadline(),
     });
     setAttempted(false);
     setFormError(null);
+    setDirectVoters([]);
+    setVoterPickerOpen(false);
     setFiles([]);
     setFileError(null);
     if (fileInput.current) fileInput.current.value = "";
@@ -211,14 +213,15 @@ export function AdminOverview({
 
   async function createPoll() {
     setAttempted(true);
-    if (!form.candidateName.trim() || !form.title.trim() || !form.committeeId || !form.deadlineAt || new Date(form.deadlineAt).getTime() <= Date.now()) return;
+    if (!form.candidateName.trim() || !form.title.trim() || (!form.committeeId && directVoters.length === 0) || !form.deadlineAt || new Date(form.deadlineAt).getTime() <= Date.now()) return;
     setSubmitting(true);
     setFormError(null);
     try {
       const result = await api.createPoll({
         candidateName: form.candidateName.trim(),
         title: form.title.trim(),
-        committeeId: form.committeeId,
+        committeeId: form.committeeId || undefined,
+        directVoters,
         deadlineAt: new Date(form.deadlineAt).toISOString(),
       }, files);
       setDialogOpen(false);
@@ -238,7 +241,7 @@ export function AdminOverview({
             <h1>{scope === "ALL" ? "系统管理" : "评审投票管理"}</h1>
             <p>{scope === "ALL" ? "维护发起人权限，查看全部投票与整体进度。" : "发起投票，掌握本人发起场次的进度，并长期追溯评审记录。"}</p>
           </div>
-          <Button appearance="primary" icon={<AddRegular />} size="large" onClick={openCreateDialog} disabled={committees.length === 0}>
+          <Button appearance="primary" icon={<AddRegular />} size="large" onClick={openCreateDialog}>
             发起投票
           </Button>
         </header>
@@ -327,6 +330,7 @@ export function AdminOverview({
                   title="还没有投票记录"
                   description="创建第一场人选评审投票，系统会自动带出委员会成员名单。"
                   action={<Button appearance="primary" icon={<AddRegular />} onClick={openCreateDialog}>发起投票</Button>}
+                  align="left"
                 />
               ) : polls.length === 0 ? (
                 <EmptyState
@@ -442,7 +446,7 @@ export function AdminOverview({
           <DialogBody>
             <DialogTitle>发起人选评审投票</DialogTitle>
             <DialogContent className={styles.createDialogContent}>
-              <p className={styles.dialogIntro}>每场只评审一位人选。委员名单会按所选委员会自动固化。</p>
+              <p className={styles.dialogIntro}>每场只评审一位人选。可选择委员会、直接选择评审人，或组合使用；重复人员会自动合并。</p>
               {formError && (
                 <MessageBar intent="error" style={{ marginBottom: 14 }}>
                   <MessageBarBody>{formError}</MessageBarBody>
@@ -514,21 +518,67 @@ export function AdminOverview({
                   )}
                 </Field>
                 <Field
-                  label="评审委员会"
-                  required
-                  validationState={invalid && invalid.committeeId ? "error" : "none"}
-                  validationMessage={invalid && invalid.committeeId ? "请选择委员会" : undefined}
+                  label="评审委员会（可选）"
+                  hint="选择后会将该委员会当前的有效成员加入本场评审名单。"
+                  validationState={invalid && invalid.voters ? "error" : "none"}
+                  validationMessage={invalid && invalid.voters ? "请至少选择一个委员会或一名评审人" : undefined}
                 >
                   <Select
                     value={form.committeeId}
                     onChange={(event) => setForm((current) => ({ ...current, committeeId: event.target.value }))}
                     aria-label="评审委员会"
                   >
-                    <option value="" disabled>请选择委员会</option>
+                    <option value="">不选择委员会</option>
                     {committees.map((committee) => (
                       <option value={committee.id} key={committee.id}>{committee.name}（{committee.memberCount} 人）</option>
                     ))}
                   </Select>
+                </Field>
+                <Field
+                  label="直接选择评审人（可选）"
+                  hint="可与委员会组合使用。若人员重复，最终名单只保留一人。"
+                >
+                  <div className={styles.voterControl}>
+                    <Button
+                      type="button"
+                      appearance="secondary"
+                      onClick={() => setVoterPickerOpen((current) => !current)}
+                    >
+                      {voterPickerOpen ? "收起通讯录" : `从通讯录选择${directVoters.length ? `（已选 ${directVoters.length} 人）` : ""}`}
+                    </Button>
+                    {directVoters.length > 0 && (
+                      <ul className={styles.selectedVoters} aria-label="已直接选择的评审人">
+                        {directVoters.map((person) => (
+                          <li key={person.dingtalkUserId}>
+                            <span><strong>{person.name}</strong><small>{person.department || person.title || "钉钉通讯录"}</small></span>
+                            <button
+                              type="button"
+                              aria-label={`移除评审人${person.name}`}
+                              onClick={() => setDirectVoters((current) => current.filter((item) => item.dingtalkUserId !== person.dingtalkUserId))}
+                            >
+                              <DismissRegular />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {voterPickerOpen && (
+                      <div className={styles.voterPicker}>
+                        <DirectoryPersonPicker
+                          open={dialogOpen && voterPickerOpen}
+                          mockMode={mockMode}
+                          corpId={corpId}
+                          excludedUserIds={directVoters.map((person) => person.dingtalkUserId)}
+                          selected={null}
+                          onSelect={(person) => setDirectVoters((current) =>
+                            current.some((item) => item.dingtalkUserId === person.dingtalkUserId)
+                              ? current
+                              : [...current, person]
+                          )}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </Field>
                 <Field
                   label="截止时间"

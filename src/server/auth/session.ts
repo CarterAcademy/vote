@@ -6,6 +6,7 @@ import type { SessionUser } from "@/types";
 
 import { ensureDatabaseReady } from "../db";
 import { isMockModeEnabled } from "../dingtalk";
+import { isPrivateNetworkHost } from "../dingtalk/web-oauth";
 import { DomainError } from "../services/errors";
 
 export const SESSION_COOKIE_NAME = "committee_vote_session";
@@ -36,6 +37,24 @@ function getSecret(): Uint8Array {
   return new TextEncoder().encode(
     configured ?? "local-demo-session-secret-change-before-production",
   );
+}
+
+export function shouldUseSecureSessionCookie(): boolean {
+  if (process.env.NODE_ENV !== "production" || isMockModeEnabled()) return false;
+  if (process.env.SESSION_COOKIE_SECURE !== "false") return true;
+
+  try {
+    const baseUrl = new URL(process.env.DINGTALK_APP_BASE_URL ?? "");
+    const explicitlyAllowed =
+      process.env.DINGTALK_APP_ALLOW_INSECURE_BASE_URL === "true";
+    return !(
+      explicitlyAllowed &&
+      baseUrl.protocol === "http:" &&
+      isPrivateNetworkHost(baseUrl.hostname)
+    );
+  } catch {
+    return true;
+  }
 }
 
 export async function createSessionToken(user: SessionUser): Promise<string> {
@@ -103,13 +122,18 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     .where("user_id", "=", currentUser.id)
     .where("is_active", "=", true)
     .executeTakeFirst();
+  const voterRecord = await db
+    .selectFrom("poll_voters")
+    .select("id")
+    .where("user_id", "=", currentUser.id)
+    .executeTakeFirst();
 
   return {
     id: currentUser.id,
     dingtalkUserId: currentUser.dingtalk_user_id,
     name: currentUser.name,
     role: currentUser.role,
-    isCommitteeMember: currentUser.role === "MEMBER" || Boolean(committeeMembership),
+    isCommitteeMember: currentUser.role === "MEMBER" || Boolean(committeeMembership) || Boolean(voterRecord),
   };
 });
 
@@ -118,7 +142,7 @@ export async function setSessionCookie(user: SessionUser): Promise<void> {
   cookieStore.set(SESSION_COOKIE_NAME, await createSessionToken(user), {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production" && !isMockModeEnabled(),
+    secure: shouldUseSecureSessionCookie(),
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   });
@@ -129,7 +153,7 @@ export async function clearSessionCookie(): Promise<void> {
   cookieStore.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production" && !isMockModeEnabled(),
+    secure: shouldUseSecureSessionCookie(),
     path: "/",
     maxAge: 0,
   });

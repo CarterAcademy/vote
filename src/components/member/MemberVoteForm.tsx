@@ -8,7 +8,6 @@ import {
   MessageBarTitle,
   Radio,
   RadioGroup,
-  Textarea,
 } from "@fluentui/react-components";
 import {
   ArrowLeftRegular,
@@ -16,13 +15,15 @@ import {
   EditRegular,
   SendRegular,
 } from "@fluentui/react-icons";
+import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { formatDateTime, isPast } from "@/lib/client/format";
-import type { MemberPollDetail, VoteChoice } from "@/lib/client/types";
+import type { MemberPollDetail, VoiceRecording, VoteChoice } from "@/lib/client/types";
 import { AppShell } from "@/components/AppShell";
 import { ErrorState, PageLoading } from "@/components/PageState";
 import { ChoiceBadge, PollStatusBadge } from "@/components/StatusBadges";
+import { VoiceOpinionInput } from "./VoiceOpinionInput";
 import styles from "./MemberVoteForm.module.css";
 
 const choices: Array<{
@@ -42,9 +43,11 @@ export function MemberVoteForm({
   pollId: string;
   initialDetail: MemberPollDetail;
 }) {
+  const router = useRouter();
   const [detail, setDetail] = useState<MemberPollDetail | null>(initialDetail);
   const [choice, setChoice] = useState<VoteChoice | "">(initialDetail.myVote?.choice ?? "");
   const [opinion, setOpinion] = useState(initialDetail.myVote?.opinion ?? "");
+  const [voiceRecordings, setVoiceRecordings] = useState<VoiceRecording[]>(initialDetail.myVote?.voiceRecordings ?? []);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +62,7 @@ export function MemberVoteForm({
       setDetail(next);
       setChoice(next.myVote?.choice ?? "");
       setOpinion(next.myVote?.opinion ?? "");
+      setVoiceRecordings(next.myVote?.voiceRecordings ?? []);
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
@@ -81,11 +85,17 @@ export function MemberVoteForm({
     setSubmitting(true);
     setError(null);
     try {
-      const result = await api.vote(pollId, choice, opinion);
+      const isUpdate = Boolean(detail?.myVote);
+      const result = await api.vote(pollId, choice, opinion, voiceRecordings.map((recording) => recording.id));
       if (!detail) return;
       setDetail({ ...detail, myVote: result.vote });
+      setVoiceRecordings(result.vote.voiceRecordings);
       setSuccess(result.vote.version > 1 ? "投票已更新，修改记录已保存。" : "投票已提交。你可以在截止前回来修改。" );
       setAttempted(false);
+      if (!isUpdate) {
+        router.push("/vote");
+        return;
+      }
       window.scrollTo({
         top: 0,
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
@@ -124,7 +134,7 @@ export function MemberVoteForm({
             </section>
 
             {success && (
-              <MessageBar intent="success" className={styles.notice}>
+              <MessageBar intent="success" className={`${styles.notice} ${styles.messageBar}`}>
                 <MessageBarBody>
                   <MessageBarTitle>提交成功</MessageBarTitle>
                   {success}
@@ -133,7 +143,7 @@ export function MemberVoteForm({
             )}
 
             {error && (
-              <MessageBar intent="error" className={styles.notice}>
+              <MessageBar intent="error" className={`${styles.notice} ${styles.messageBar}`}>
                 <MessageBarBody>{error}</MessageBarBody>
               </MessageBar>
             )}
@@ -141,7 +151,7 @@ export function MemberVoteForm({
             {canEdit ? (
               <form className={styles.form} onSubmit={(event) => { event.preventDefault(); void submit(); }}>
                 {detail.myVote && (
-                  <MessageBar intent="info" icon={<EditRegular />}>
+                  <MessageBar intent="info" icon={<EditRegular />} className={styles.messageBar}>
                     <MessageBarBody>
                       已于 {formatDateTime(detail.myVote.updatedAt)} 提交。截止前可修改，系统会保留每次修改记录。
                     </MessageBarBody>
@@ -190,13 +200,13 @@ export function MemberVoteForm({
                   validationState={opinionInvalid ? "error" : "none"}
                   validationMessage={opinionInvalid ? "选择通过或不通过时，必须填写详细评审意见" : undefined}
                 >
-                  <Textarea
+                  <VoiceOpinionInput
+                    pollId={pollId}
                     value={opinion}
-                    onChange={(_, data) => setOpinion(data.value)}
-                    placeholder="请输入客观、完整的评审意见"
-                    resize="vertical"
+                    onChange={setOpinion}
+                    recordings={voiceRecordings}
+                    onRecordingsChange={setVoiceRecordings}
                     maxLength={4000}
-                    aria-label="详细评审意见"
                   />
                 </Field>
 
@@ -214,7 +224,7 @@ export function MemberVoteForm({
               </form>
             ) : (
               <section className={styles.readonly} aria-label="我的投票记录">
-                <MessageBar intent="warning">
+                <MessageBar intent="warning" className={styles.messageBar}>
                   <MessageBarBody>本场投票已截止或关闭，当前记录不可修改。</MessageBarBody>
                 </MessageBar>
                 {detail.myVote ? (
@@ -223,6 +233,16 @@ export function MemberVoteForm({
                       <span className={styles.readonlyLabel}>我的选择</span>
                       <div><ChoiceBadge choice={detail.myVote.choice} /></div>
                     </div>
+                    {detail.myVote.voiceRecordings.length > 0 && (
+                      <div className={styles.readonlyRow}>
+                        <span className={styles.readonlyLabel}>语音原音</span>
+                        <div className={styles.readonlyAudioList}>
+                          {detail.myVote.voiceRecordings.map((recording, index) => (
+                            <audio key={recording.id} controls preload="metadata" src={`/api/polls/${pollId}/voice-recordings/${recording.id}`} aria-label={`播放语音 ${index + 1}`} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className={styles.readonlyRow}>
                       <span className={styles.readonlyLabel}>评审意见</span>
                       <p className={styles.opinionText}>{detail.myVote.opinion || "未填写"}</p>
@@ -233,7 +253,7 @@ export function MemberVoteForm({
                     </div>
                   </>
                 ) : (
-                  <MessageBar intent="info">
+                  <MessageBar intent="info" className={styles.messageBar}>
                     <MessageBarBody>你未在截止前提交本场投票。</MessageBarBody>
                   </MessageBar>
                 )}

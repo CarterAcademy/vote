@@ -19,6 +19,7 @@ import {
 import {
   AddRegular,
   DeleteRegular,
+  EditRegular,
   PeopleCommunityRegular,
   PersonAddRegular,
 } from "@fluentui/react-icons";
@@ -75,6 +76,7 @@ export function CommitteeManagement({
   const [committees, setCommittees] = useState<Committee[]>(initialCommittees);
   const [membersByCommittee, setMembersByCommittee] = useState<Record<string, CommitteeMember[]>>(initialMembersByCommittee);
   const [selectedId, setSelectedId] = useState(initialCommittees[0]?.id ?? "");
+  const [memberPanelOpen, setMemberPanelOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +87,10 @@ export function CommitteeManagement({
   const [position, setPosition] = useState("委员");
   const [saving, setSaving] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<CommitteeMember | null>(null);
+  const [groupDialogMode, setGroupDialogMode] = useState<"create" | "rename" | null>(null);
+  const [renameGroupTarget, setRenameGroupTarget] = useState<Committee | null>(null);
+  const [groupName, setGroupName] = useState("");
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<Committee | null>(null);
   const [isInDingTalk, setIsInDingTalk] = useState(false);
   const [directoryPath, setDirectoryPath] = useState<DirectoryLocation[]>([directoryRoot]);
   const [directoryDepartments, setDirectoryDepartments] = useState<DirectoryDepartment[]>([]);
@@ -144,20 +150,24 @@ export function CommitteeManagement({
       ),
     );
   }, [members, query]);
+  const directoryExcludedMembers = useMemo(
+    () => groupDialogMode === "create" ? [] : members,
+    [groupDialogMode, members],
+  );
   const availableMockUsers = useMemo(() => {
-    const memberIds = new Set(members.map((member) => member.dingtalkUserId));
+    const memberIds = new Set(directoryExcludedMembers.map((member) => member.dingtalkUserId));
     const normalized = directoryQuery.trim().toLowerCase();
     return mockDirectory.filter(
       (user) =>
         !memberIds.has(user.dingtalkUserId) &&
         (!normalized || `${user.name}${user.department}`.toLowerCase().includes(normalized)),
     );
-  }, [directoryQuery, members]);
+  }, [directoryExcludedMembers, directoryQuery]);
   const visibleDirectoryUsers = useMemo(() => {
-    const memberIds = new Set(members.map((member) => member.dingtalkUserId));
+    const memberIds = new Set(directoryExcludedMembers.map((member) => member.dingtalkUserId));
     const source = directoryQuery.trim() ? directorySearchUsers : directoryUsers;
     return source.filter((user) => !memberIds.has(user.dingtalkUserId));
-  }, [directoryQuery, directorySearchUsers, directoryUsers, members]);
+  }, [directoryExcludedMembers, directoryQuery, directorySearchUsers, directoryUsers]);
 
   const loadDirectory = useCallback(async (
     location: DirectoryLocation,
@@ -202,7 +212,7 @@ export function CommitteeManagement({
       const users = page.users.map((user: ApiDirectoryUser) => ({
         dingtalkUserId: user.userId,
         name: user.name,
-        department: null,
+        department: user.department ?? null,
         ...(user.title ? { title: user.title } : {}),
       }));
       setDirectorySearchUsers((current) => append ? [...current, ...users] : users);
@@ -220,7 +230,7 @@ export function CommitteeManagement({
   }, []);
 
   useEffect(() => {
-    if (mockMode || !addOpen) return;
+    if (mockMode || (!addOpen && groupDialogMode !== "create")) return;
     const searchQuery = directoryQuery.trim();
     if (!searchQuery) {
       directorySearchRequest.current += 1;
@@ -237,13 +247,12 @@ export function CommitteeManagement({
       void searchDirectory(searchQuery);
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [addOpen, directoryQuery, mockMode, searchDirectory]);
+  }, [addOpen, directoryQuery, groupDialogMode, mockMode, searchDirectory]);
 
-  function openAddDialog() {
+  function resetDirectorySelection() {
     setSelectedUsers([]);
     setDirectoryQuery("");
     setPosition("委员");
-    setNotice(null);
     setDialogError(null);
     setDirectoryPath([directoryRoot]);
     setDirectoryDepartments([]);
@@ -251,8 +260,92 @@ export function CommitteeManagement({
     setDirectorySearchUsers([]);
     setDirectorySearchHasMore(false);
     setDirectorySearchCursor(undefined);
-    setAddOpen(true);
     if (!mockMode) void loadDirectory(directoryRoot);
+  }
+
+  function openAddDialog() {
+    resetDirectorySelection();
+    setNotice(null);
+    setAddOpen(true);
+  }
+
+  function openCreateGroupDialog() {
+    setGroupName("");
+    setRenameGroupTarget(null);
+    resetDirectorySelection();
+    setGroupDialogMode("create");
+  }
+
+  function openMemberPanel(committee: Committee) {
+    setSelectedId(committee.id);
+    setQuery("");
+    setNotice(null);
+    setMemberPanelOpen(true);
+  }
+
+  function openRenameGroupDialog(committee: Committee) {
+    setGroupName(committee.name);
+    setRenameGroupTarget(committee);
+    setDialogError(null);
+    setGroupDialogMode("rename");
+  }
+
+  async function saveGroup() {
+    const name = groupName.trim();
+    if (!name || !groupDialogMode) return;
+    setSaving(true);
+    setDialogError(null);
+    try {
+      if (groupDialogMode === "create") {
+        const result = await api.createCommittee(name, selectedUsers.map((user) => ({
+          ...user,
+          position: position.trim() || "委员",
+        })));
+        setCommittees((current) => [...current, result.committee]);
+        setMembersByCommittee((current) => ({ ...current, [result.committee.id]: result.members }));
+        setSelectedId(result.committee.id);
+        setMemberPanelOpen(false);
+        setNotice(`已创建小组“${result.committee.name}”`);
+      } else if (renameGroupTarget) {
+        const result = await api.renameCommittee(renameGroupTarget.id, name);
+        setCommittees((current) => current.map((committee) =>
+          committee.id === result.committee.id ? result.committee : committee,
+        ));
+        setNotice(`小组已重命名为“${result.committee.name}”`);
+      }
+      setGroupDialogMode(null);
+      setRenameGroupTarget(null);
+    } catch (requestError) {
+      setDialogError(errorMessage(requestError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteGroup() {
+    if (!deleteGroupTarget) return;
+    setSaving(true);
+    setDialogError(null);
+    try {
+      await api.deleteCommittee(deleteGroupTarget.id);
+      const remaining = committees.filter((committee) => committee.id !== deleteGroupTarget.id);
+      setCommittees(remaining);
+      setMembersByCommittee((current) => {
+        const next = { ...current };
+        delete next[deleteGroupTarget.id];
+        return next;
+      });
+      if (selectedId === deleteGroupTarget.id) {
+        setSelectedId(remaining[0]?.id ?? "");
+        setMemberPanelOpen(false);
+      }
+      setNotice(`已删除小组“${deleteGroupTarget.name}”`);
+      setDeleteGroupTarget(null);
+    } catch (requestError) {
+      setDialogError(errorMessage(requestError));
+    } finally {
+      setSaving(false);
+    }
   }
 
   function toggleDirectoryUser(user: DirectoryUser, checked: boolean) {
@@ -290,7 +383,7 @@ export function CommitteeManagement({
         corpId,
         multiple: true,
         max: 30,
-        users: members.map((member) => member.dingtalkUserId),
+        users: directoryExcludedMembers.map((member) => member.dingtalkUserId),
         startWithDepartmentId: 0,
       });
       const payload = raw as unknown as Record<string, unknown> | Array<Record<string, unknown>>;
@@ -389,11 +482,13 @@ export function CommitteeManagement({
         <header className={styles.pageHeader}>
           <div>
             <h1>委员会管理</h1>
-            <p>维护中关村两院学术委员会和技术委员会名单，变更将用于后续新建投票。</p>
+            <p>创建和维护投票小组及其委员名单，变更仅用于后续新建投票。</p>
           </div>
-          <Button appearance="primary" icon={<PersonAddRegular />} size="large" onClick={openAddDialog} disabled={!selectedCommittee}>
-            添加委员
-          </Button>
+          <div className={styles.headerActions}>
+            <Button appearance="primary" icon={<AddRegular />} size="large" onClick={openCreateGroupDialog}>
+              新建小组
+            </Button>
+          </div>
         </header>
 
         {notice && (
@@ -409,50 +504,89 @@ export function CommitteeManagement({
         {loading && <PageLoading label="正在加载委员会名单" />}
         {!loading && error && committees.length === 0 && <ErrorState description={error} onRetry={() => void load()} />}
 
+        {!loading && !error && committees.length === 0 && (
+          <EmptyState
+            title="暂无投票小组"
+            description="新建小组后，即可从钉钉通讯录添加委员并发起投票。"
+            action={<Button appearance="primary" icon={<AddRegular />} onClick={openCreateGroupDialog}>新建小组</Button>}
+          />
+        )}
+
         {!loading && committees.length > 0 && (
           <>
             <section className={styles.committeeGrid} aria-label="委员会选择">
               {committees.map((committee) => {
-                const active = committee.id === selectedId;
+                const active = memberPanelOpen && committee.id === selectedId;
                 return (
-                  <button
-                    type="button"
+                  <article
                     key={committee.id}
                     className={`${styles.committeeCard} ${active ? styles.committeeCardActive : ""}`}
-                    onClick={() => { setSelectedId(committee.id); setQuery(""); setNotice(null); }}
-                    aria-pressed={active}
+                    aria-label={`${committee.name}，${committee.memberCount} 名在任委员`}
                   >
                     <span className={styles.committeeIcon}><PeopleCommunityRegular /></span>
-                    <span>
+                    <span className={styles.committeeSummary}>
                       <strong>{committee.name}</strong>
                       <small>{committee.memberCount} 名在任委员</small>
                     </span>
-                    <span className={styles.code}>{committee.code === "ACADEMIC" ? "学术" : "技术"}</span>
-                  </button>
+                    <span className={styles.code}>小组</span>
+                    <span className={styles.committeeActions}>
+                      <Button
+                        appearance="subtle"
+                        size="small"
+                        icon={<PersonAddRegular />}
+                        onClick={() => openMemberPanel(committee)}
+                      >
+                        增删查成员
+                      </Button>
+                      <Button
+                        appearance="subtle"
+                        size="small"
+                        icon={<EditRegular />}
+                        onClick={() => openRenameGroupDialog(committee)}
+                      >
+                        重命名
+                      </Button>
+                      <Button
+                        appearance="subtle"
+                        size="small"
+                        icon={<DeleteRegular />}
+                        className={styles.dangerButton}
+                        onClick={() => setDeleteGroupTarget(committee)}
+                      >
+                        删除小组
+                      </Button>
+                    </span>
+                  </article>
                 );
               })}
             </section>
 
-            <section className={styles.memberSection} aria-labelledby="member-list-title">
+            {memberPanelOpen && selectedCommittee && <section className={styles.memberSection} aria-label={`${selectedCommittee.name}成员管理`}>
               <div className={styles.sectionHeader}>
-                <div>
-                  <h2 id="member-list-title">{selectedCommittee?.name}委员名单</h2>
-                  <p>名单变更不影响已经发起的投票和历史记录。</p>
+                <div className={styles.sectionActions}>
+                  <SearchBox
+                    className={styles.search}
+                    value={query}
+                    onChange={(_, data) => setQuery(data.value)}
+                    placeholder="搜索姓名、部门或职务"
+                    aria-label="搜索委员"
+                  />
+                  <Button
+                    appearance="primary"
+                    className={styles.addMemberButton}
+                    icon={<PersonAddRegular />}
+                    onClick={openAddDialog}
+                  >
+                    添加成员
+                  </Button>
                 </div>
-                <SearchBox
-                  className={styles.search}
-                  value={query}
-                  onChange={(_, data) => setQuery(data.value)}
-                  placeholder="搜索姓名、部门或职务"
-                  aria-label="搜索委员"
-                />
               </div>
 
               {filteredMembers.length === 0 ? (
                 <EmptyState
                   title={query ? "没有匹配的委员" : "暂无委员"}
                   description={query ? "请尝试其他关键词。" : "请从钉钉通讯录添加委员会成员。"}
-                  action={!query && <Button appearance="primary" icon={<AddRegular />} onClick={openAddDialog}>添加委员</Button>}
+                  align="left"
                 />
               ) : (
                 <div className={styles.tableWrap}>
@@ -471,10 +605,162 @@ export function CommitteeManagement({
                   </table>
                 </div>
               )}
-            </section>
+            </section>}
           </>
         )}
       </div>
+
+      <Dialog open={Boolean(groupDialogMode)} onOpenChange={(_, data) => {
+        if (!saving && !data.open) {
+          setGroupDialogMode(null);
+          setRenameGroupTarget(null);
+        }
+      }}>
+        <DialogSurface className={groupDialogMode === "create" ? styles.dialog : undefined}>
+          <DialogBody>
+            <DialogTitle>{groupDialogMode === "create" ? "新建投票小组" : "重命名小组"}</DialogTitle>
+            <DialogContent className={styles.dialogContent}>
+              {dialogError && <MessageBar intent="error"><MessageBarBody>{dialogError}</MessageBarBody></MessageBar>}
+              <Field label="小组名称" required>
+                <Input
+                  value={groupName}
+                  onChange={(_, data) => setGroupName(data.value)}
+                  maxLength={200}
+                  autoFocus
+                  onKeyDown={(event) => { if (event.key === "Enter") void saveGroup(); }}
+                />
+              </Field>
+              {groupDialogMode === "create" && (
+                <>
+                  <p className={styles.dialogIntro}>
+                    <strong>选择委员（可多选）</strong><br />
+                    可选择 0–30 人，创建后仍可继续增删成员。
+                  </p>
+                  {mockMode ? (
+                    <>
+                      <SearchBox value={directoryQuery} onChange={(_, data) => setDirectoryQuery(data.value)} placeholder="搜索组织成员" />
+                      <div className={styles.directoryList}>
+                        {availableMockUsers.map((user) => (
+                          <label className={styles.directoryRow} key={user.dingtalkUserId}>
+                            <Checkbox
+                              checked={selectedUsers.some((item) => item.dingtalkUserId === user.dingtalkUserId)}
+                              disabled={selectedUsers.length >= 30 && !selectedUsers.some((item) => item.dingtalkUserId === user.dingtalkUserId)}
+                              onChange={(_, data) => toggleDirectoryUser(user, data.checked === true)}
+                              aria-label={`选择${user.name}`}
+                            />
+                            <span className={styles.avatar}>{initials(user.name)}</span>
+                            <span><strong>{user.name}</strong><small>{user.department}</small></span>
+                          </label>
+                        ))}
+                        {availableMockUsers.length === 0 && <p className={styles.noDirectoryResult}>未找到匹配的组织成员</p>}
+                      </div>
+                    </>
+                  ) : (
+                    <div className={styles.browserDirectory}>
+                      <div className={styles.directoryToolbar}>
+                        <div className={styles.breadcrumbs} aria-label="通讯录位置">
+                          {directoryPath.map((location, index) => (
+                            <span key={location.id}>
+                              {index > 0 && <span className={styles.breadcrumbSeparator}>/</span>}
+                              <button
+                                type="button"
+                                onClick={() => returnToDirectory(index)}
+                                disabled={index === directoryPath.length - 1 || directoryLoading}
+                              >
+                                {location.name}
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                        {isInDingTalk && (
+                          <Button appearance="secondary" size="small" onClick={() => void chooseFromDingTalk()}>
+                            使用钉钉选择器
+                          </Button>
+                        )}
+                      </div>
+                      <SearchBox
+                        value={directoryQuery}
+                        onChange={(_, data) => setDirectoryQuery(data.value)}
+                        placeholder="搜索企业通讯录人员"
+                        aria-label="搜索企业通讯录人员"
+                      />
+                      <div className={styles.directoryList} aria-busy={directoryLoading || directorySearchLoading}>
+                        {!directoryQuery.trim() && directoryDepartments.map((department) => (
+                          <button
+                            type="button"
+                            className={styles.departmentRow}
+                            key={department.id}
+                            onClick={() => enterDepartment(department)}
+                            disabled={directoryLoading}
+                          >
+                            <PeopleCommunityRegular />
+                            <span><strong>{department.name}</strong><small>进入部门选择人员</small></span>
+                            <span aria-hidden="true">›</span>
+                          </button>
+                        ))}
+                        {visibleDirectoryUsers.map((user) => (
+                          <label className={styles.directoryRow} key={user.dingtalkUserId}>
+                            <Checkbox
+                              checked={selectedUsers.some((item) => item.dingtalkUserId === user.dingtalkUserId)}
+                              disabled={selectedUsers.length >= 30 && !selectedUsers.some((item) => item.dingtalkUserId === user.dingtalkUserId)}
+                              onChange={(_, data) => toggleDirectoryUser(user, data.checked === true)}
+                              aria-label={`选择${user.name}`}
+                            />
+                            <span className={styles.avatar}>{initials(user.name)}</span>
+                            <span><strong>{user.name}</strong><small>{user.department || user.title || "钉钉通讯录"}</small></span>
+                          </label>
+                        ))}
+                        {(directoryLoading || directorySearchLoading) && <div className={styles.directoryLoading}><Spinner size="small" label={directoryQuery.trim() ? "正在搜索通讯录" : "正在读取通讯录"} /></div>}
+                        {!directoryLoading && !directorySearchLoading && (!directoryQuery.trim() ? directoryDepartments.length === 0 : true) && visibleDirectoryUsers.length === 0 && (
+                          <p className={styles.noDirectoryResult}>{directoryQuery.trim() ? "未找到匹配的企业通讯录人员" : "当前部门暂无可选人员"}</p>
+                        )}
+                        {!directoryQuery.trim() && !directoryLoading && directoryHasMore && directoryCursor !== undefined && (
+                          <Button appearance="subtle" className={styles.loadMore} onClick={() => void loadDirectory(directoryPath.at(-1) ?? directoryRoot, directoryCursor, true)}>
+                            加载更多人员
+                          </Button>
+                        )}
+                        {directoryQuery.trim() && !directorySearchLoading && directorySearchHasMore && directorySearchCursor !== undefined && (
+                          <Button appearance="subtle" className={styles.loadMore} onClick={() => void searchDirectory(directoryQuery.trim(), directorySearchCursor, true)}>
+                            加载更多搜索结果
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {selectedUsers.length > 0 && <div className={styles.selectionSummary}>已选择 {selectedUsers.length}/30 人：{selectedUsers.map((user) => user.name).join("、")}</div>}
+                  <Field label="委员职务" hint="本次选择的人员将使用同一职务。">
+                    <Input value={position} onChange={(_, data) => setPosition(data.value)} maxLength={100} />
+                  </Field>
+                </>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => { setGroupDialogMode(null); setRenameGroupTarget(null); }} disabled={saving}>取消</Button>
+              <Button appearance="primary" onClick={() => void saveGroup()} disabled={saving || !groupName.trim()}>
+                {saving ? <Spinner size="tiny" /> : groupDialogMode === "create" ? "创建" : "保存"}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      <Dialog open={Boolean(deleteGroupTarget)} onOpenChange={(_, data) => !saving && !data.open && setDeleteGroupTarget(null)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>删除小组</DialogTitle>
+            <DialogContent className={styles.dialogContent}>
+              {dialogError && <MessageBar intent="error"><MessageBarBody>{dialogError}</MessageBarBody></MessageBar>}
+              <p>确定删除“{deleteGroupTarget?.name}”吗？该小组的当前委员关系也会删除。已有投票记录的小组不能删除。</p>
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setDeleteGroupTarget(null)} disabled={saving}>取消</Button>
+              <Button appearance="primary" onClick={() => void deleteGroup()} disabled={saving}>
+                {saving ? <Spinner size="tiny" /> : "确认删除"}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
 
       <Dialog open={addOpen} onOpenChange={(_, data) => !saving && setAddOpen(data.open)}>
         <DialogSurface className={styles.dialog}>

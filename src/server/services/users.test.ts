@@ -1,7 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { closeDatabase, ensureDatabaseReady } from "../db";
-import { addInitiator, getUserById, listInitiators, updateInitiator } from "./users";
+import { MockDingTalkGateway } from "../dingtalk";
+import {
+  addInitiator,
+  authenticateDingTalkCode,
+  getUserById,
+  listInitiators,
+  updateInitiator,
+} from "./users";
 
 const actor = {
   id: "00000000-0000-4000-8000-000000000099",
@@ -45,6 +52,33 @@ describe("initiator management", () => {
   it("does not allow an initiator to deactivate the current account", async () => {
     await expect(updateInitiator(actor.id, { isActive: false }, actor)).rejects.toMatchObject({
       code: "CONFLICT",
+    });
+  });
+
+  it("syncs the authenticated user's DingTalk name and department", async () => {
+    class IdentityGateway extends MockDingTalkGateway {
+      override async exchangeAuthCode() {
+        return {
+          userId: actor.dingtalkUserId,
+          name: "测试发起人（钉钉）",
+          department: "智能创新部 / 研究院员工",
+        };
+      }
+    }
+
+    await expect(
+      authenticateDingTalkCode("auth-code", new IdentityGateway()),
+    ).resolves.toMatchObject({ name: "测试发起人（钉钉）" });
+
+    const db = await ensureDatabaseReady();
+    await expect(
+      db.selectFrom("users")
+        .select(["name", "department"])
+        .where("id", "=", actor.id)
+        .executeTakeFirstOrThrow(),
+    ).resolves.toMatchObject({
+      name: "测试发起人（钉钉）",
+      department: "智能创新部 / 研究院员工",
     });
   });
 

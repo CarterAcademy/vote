@@ -23,6 +23,18 @@ interface UserInfoResponse {
   };
 }
 
+interface UserDetailResponse {
+  errcode?: number;
+  errmsg?: string;
+  result?: {
+    userid?: string;
+    name?: string;
+    unionid?: string;
+    title?: string;
+    dept_id_list?: number[];
+  };
+}
+
 interface UserAccessTokenResponse {
   accessToken?: string;
   corpId?: string;
@@ -63,6 +75,15 @@ interface DepartmentListResponse {
   }>;
 }
 
+interface DepartmentDetailResponse {
+  errcode?: number;
+  errmsg?: string;
+  result?: {
+    dept_id?: number;
+    name?: string;
+  };
+}
+
 interface DepartmentUserListResponse {
   errcode?: number;
   errmsg?: string;
@@ -90,6 +111,8 @@ interface BatchUserResponse {
     userid?: string;
     name?: string;
     nickname?: string;
+    title?: string;
+    deptIdList?: number[];
   }>;
   unauthorizedUserIdList?: string[];
   code?: string;
@@ -150,10 +173,14 @@ export class RealDingTalkGateway implements DingTalkGateway {
       );
     }
 
+    const directoryUser = await this.getDirectoryUser(payload.result.userid);
     return {
       userId: payload.result.userid,
-      name: payload.result.name,
+      name: directoryUser?.name ?? payload.result.name,
       unionId: payload.result.unionid,
+      ...(directoryUser?.department
+        ? { department: directoryUser.department }
+        : {}),
     };
   }
 
@@ -217,10 +244,47 @@ export class RealDingTalkGateway implements DingTalkGateway {
       );
     }
 
+    const directoryUser = await this.getDirectoryUser(userPayload.result.userid);
     return {
       userId: userPayload.result.userid,
-      name: profile.nick,
+      name: directoryUser?.name ?? profile.nick,
       unionId: profile.unionId,
+      ...(directoryUser?.department
+        ? { department: directoryUser.department }
+        : {}),
+    };
+  }
+
+  async getDirectoryUser(userId: string) {
+    const token = await this.getAccessToken();
+    const response = await this.fetchImpl(
+      `${this.legacyApiBaseUrl}/topapi/v2/user/get?access_token=${encodeURIComponent(token)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userid: userId }),
+        cache: "no-store",
+      },
+    );
+    const payload = (await response.json()) as UserDetailResponse;
+    if (!response.ok || payload.errcode !== 0) {
+      throw new Error(
+        `DingTalk user detail lookup failed: ${payload.errmsg ?? response.statusText}`,
+      );
+    }
+    const user = payload.result;
+    if (!user?.userid || !user.name) return null;
+    const departments = await this.resolveDepartmentNames(
+      token,
+      user.dept_id_list ?? [],
+    );
+    return {
+      userId: user.userid,
+      name: user.name,
+      ...(user.title ? { title: user.title } : {}),
+      ...(departments.length > 0
+        ? { department: departments.join(" / ") }
+        : {}),
     };
   }
 
@@ -351,12 +415,25 @@ export class RealDingTalkGateway implements DingTalkGateway {
       );
     }
 
+    const departmentIds = Array.from(new Set(
+      (details.userList ?? []).flatMap((user) => user.deptIdList ?? []),
+    ));
+    const departmentNames = await this.resolveDepartmentNameMap(token, departmentIds);
     const usersById = new Map(
-      (details.userList ?? []).flatMap((user) =>
-        user.userid && (user.name || user.nickname)
-          ? [[user.userid, { userId: user.userid, name: user.name ?? user.nickname! }] as const]
-          : [],
-      ),
+      (details.userList ?? []).flatMap((user) => {
+        if (!user.userid || (!user.name && !user.nickname)) return [];
+        const departments = (user.deptIdList ?? [])
+          .map((departmentId) => departmentNames.get(departmentId))
+          .filter((name): name is string => Boolean(name));
+        return [[user.userid, {
+          userId: user.userid,
+          name: user.name ?? user.nickname!,
+          ...(user.title ? { title: user.title } : {}),
+          ...(departments.length > 0
+            ? { department: departments.join(" / ") }
+            : {}),
+        }] as const];
+      }),
     );
     const hasMore = search.hasMore === true;
 
@@ -438,5 +515,41 @@ export class RealDingTalkGateway implements DingTalkGateway {
       expiresAt: now + (payload.expireIn ?? 7200) * 1000,
     };
     return this.cachedToken.value;
+  }
+
+  private async resolveDepartmentNames(
+    token: string,
+    departmentIds: number[],
+  ): Promise<string[]> {
+    const departmentNames = await this.resolveDepartmentNameMap(token, departmentIds);
+    return departmentIds
+      .map((departmentId) => departmentNames.get(departmentId))
+      .filter((name): name is string => Boolean(name));
+  }
+
+  private async resolveDepartmentNameMap(
+    token: string,
+    departmentIds: number[],
+  ): Promise<Map<number, string>> {
+    const uniqueIds = Array.from(new Set(departmentIds.filter((id) => id > 1)));
+    const entries = await Promise.all(uniqueIds.map(async (departmentId) => {
+      const response = await this.fetchImpl(
+        `${this.legacyApiBaseUrl}/topapi/v2/department/get?access_token=${encodeURIComponent(token)}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ dept_id: departmentId }),
+          cache: "no-store",
+        },
+      );
+      const payload = (await response.json()) as DepartmentDetailResponse;
+      if (!response.ok || payload.errcode !== 0 || !payload.result?.name) {
+        throw new Error(
+          `DingTalk department detail lookup failed: ${payload.errmsg ?? response.statusText}`,
+        );
+      }
+      return [departmentId, payload.result.name] as const;
+    }));
+    return new Map(entries);
   }
 }

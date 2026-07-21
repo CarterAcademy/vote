@@ -12,6 +12,7 @@ import type {
   SessionPayload,
   VoteChoice,
   VoteRecord,
+  VoiceRecording,
 } from "./types";
 
 export class ApiError extends Error {
@@ -129,11 +130,57 @@ export const api = {
 
   logout: () => apiRequest<{ success: boolean }>("/api/logout", { method: "POST" }),
 
+  transcriptionCapability: () =>
+    apiRequest<{ available: boolean }>("/api/transcribe"),
+
+  uploadVoiceRecording: (pollId: string, audio: Blob) => {
+    const body = new FormData();
+    body.set("audio", audio, `voice.${audio.type.includes("mp4") ? "mp4" : "webm"}`);
+    return apiRequest<{ recording: VoiceRecording }>(`/api/polls/${pollId}/voice-recordings`, {
+      method: "POST",
+      body,
+    });
+  },
+
+  deleteVoiceDraft: (pollId: string, recordingId: string) =>
+    apiRequest<{ success: boolean }>(`/api/polls/${pollId}/voice-recordings/${recordingId}`, {
+      method: "DELETE",
+    }),
+
   committees: () =>
     apiRequest<{ items: Committee[] }>("/api/committees", {
       dedupe: true,
       memoryCacheMs: 60_000,
     }).then((result) => result.items),
+
+  createCommittee: async (
+    name: string,
+    members: Array<{ dingtalkUserId: string; name: string; department?: string | null; position?: string | null }> = [],
+  ) => {
+    const result = await apiRequest<{ committee: Committee; members: CommitteeMember[] }>("/api/committees", {
+      method: "POST",
+      body: JSON.stringify({ name, members }),
+    });
+    invalidateMemoryCache("/api/committees");
+    return result;
+  },
+
+  renameCommittee: async (committeeId: string, name: string) => {
+    const result = await apiRequest<{ committee: Committee }>(`/api/committees/${committeeId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    });
+    invalidateMemoryCache("/api/committees");
+    return result;
+  },
+
+  deleteCommittee: async (committeeId: string) => {
+    const result = await apiRequest<{ success: true }>(`/api/committees/${committeeId}`, {
+      method: "DELETE",
+    });
+    invalidateMemoryCache("/api/committees");
+    return result;
+  },
 
   committeeMembers: (committeeId: string) =>
     apiRequest<{ items: CommitteeMember[] }>(`/api/committees/${committeeId}/members`).then(
@@ -196,13 +243,20 @@ export const api = {
   createPoll: (input: {
     title: string;
     candidateName: string;
-    committeeId: string;
+    committeeId?: string;
+    directVoters?: Array<{
+      dingtalkUserId: string;
+      name: string;
+      department?: string | null;
+      position?: string | null;
+    }>;
     deadlineAt: string;
   }, files: File[] = []) => {
     const body = new FormData();
     body.set("title", input.title);
     body.set("candidateName", input.candidateName);
-    body.set("committeeId", input.committeeId);
+    if (input.committeeId) body.set("committeeId", input.committeeId);
+    body.set("directVoters", JSON.stringify(input.directVoters ?? []));
     body.set("deadlineAt", input.deadlineAt);
     for (const file of files) body.append("files", file);
     return apiRequest<{ poll: PollSummary }>("/api/polls", {
@@ -230,10 +284,10 @@ export const api = {
 
   memberPoll: (pollId: string) => apiRequest<MemberPollDetail>(`/api/polls/${pollId}?view=member`),
 
-  vote: (pollId: string, choice: VoteChoice, opinion: string) =>
+  vote: (pollId: string, choice: VoteChoice, opinion: string, voiceRecordingIds: string[] = []) =>
     apiRequest<{ vote: VoteRecord }>(`/api/polls/${pollId}/vote`, {
       method: "POST",
-      body: JSON.stringify({ choice, opinion: opinion.trim() || null }),
+      body: JSON.stringify({ choice, opinion: opinion.trim() || null, voiceRecordingIds }),
     }),
 
   closePoll: (pollId: string) =>

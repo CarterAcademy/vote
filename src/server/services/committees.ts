@@ -5,10 +5,188 @@ import type { SessionUser } from "@/types";
 import { ensureDatabaseReady } from "../db";
 import {
   addCommitteeMemberSchema,
+  createCommitteeSchema,
+  updateCommitteeSchema,
   type AddCommitteeMemberInput,
+  type CreateCommitteeInput,
+  type UpdateCommitteeInput,
 } from "../validation";
 import { assertHr, toIso, writeAuditLog } from "./common";
 import { DomainError } from "./errors";
+import type { CommitteeDto } from "./polls";
+
+async function getCommitteeById(committeeId: string): Promise<CommitteeDto> {
+  const db = await ensureDatabaseReady();
+  const row = await db
+    .selectFrom("committees")
+    .leftJoin("committee_members", (join) =>
+      join
+        .onRef("committee_members.committee_id", "=", "committees.id")
+        .on("committee_members.is_active", "=", true),
+    )
+    .select([
+      "committees.id",
+      "committees.code",
+      "committees.name",
+      (expression) => expression.fn.count("committee_members.id").as("member_count"),
+    ])
+    .where("committees.id", "=", committeeId)
+    .groupBy(["committees.id", "committees.code", "committees.name"])
+    .executeTakeFirst();
+  if (!row) throw new DomainError("NOT_FOUND", "小组不存在");
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    memberCount: Number(row.member_count),
+  };
+}
+
+export async function createCommittee(
+  input: CreateCommitteeInput | unknown,
+  actor: SessionUser,
+): Promise<CommitteeDto> {
+  assertHr(actor);
+  const parsed = createCommitteeSchema.parse(input);
+  const db = await ensureDatabaseReady();
+  const id = randomUUID();
+  const duplicate = await db
+    .selectFrom("committees")
+    .select("id")
+    .where("name", "=", parsed.name)
+    .executeTakeFirst();
+  if (duplicate) throw new DomainError("CONFLICT", "已存在同名小组");
+
+  await db.transaction().execute(async (transaction) => {
+    await transaction.insertInto("committees").values({
+      id,
+      code: `G_${randomUUID().replaceAll("-", "").slice(0, 28)}`,
+      name: parsed.name,
+    }).execute();
+
+    for (const [index, member] of parsed.members.entries()) {
+      let user = await transaction
+        .selectFrom("users")
+        .select(["id", "department"])
+        .where("dingtalk_user_id", "=", member.dingtalkUserId)
+        .executeTakeFirst();
+
+      if (!user) {
+        const userId = randomUUID();
+        await transaction.insertInto("users").values({
+          id: userId,
+          dingtalk_user_id: member.dingtalkUserId,
+          name: member.name,
+          department: member.department?.trim() || null,
+          role: "MEMBER",
+        }).execute();
+        user = { id: userId, department: member.department?.trim() || null };
+      } else {
+        await transaction.updateTable("users").set({
+          name: member.name,
+          department: member.department?.trim() || user.department,
+          is_active: true,
+          updated_at: new Date(),
+        }).where("id", "=", user.id).execute();
+      }
+
+      const memberId = randomUUID();
+      await transaction.insertInto("committee_members").values({
+        id: memberId,
+        committee_id: id,
+        user_id: user.id,
+        position: member.position?.trim() || "委员",
+        display_order: index + 1,
+      }).execute();
+      await writeAuditLog(transaction, {
+        actorUserId: actor.id,
+        action: "COMMITTEE_MEMBER_ADDED",
+        entityType: "COMMITTEE",
+        entityId: id,
+        details: { memberId, userId: user.id, name: member.name, committeeName: parsed.name },
+      });
+    }
+
+    await writeAuditLog(transaction, {
+      actorUserId: actor.id,
+      action: "COMMITTEE_CREATED",
+      entityType: "COMMITTEE",
+      entityId: id,
+      details: { name: parsed.name, memberCount: parsed.members.length },
+    });
+  });
+  return getCommitteeById(id);
+}
+
+export async function updateCommittee(
+  committeeId: string,
+  input: UpdateCommitteeInput | unknown,
+  actor: SessionUser,
+): Promise<CommitteeDto> {
+  assertHr(actor);
+  const parsed = updateCommitteeSchema.parse(input);
+  const db = await ensureDatabaseReady();
+  const duplicate = await db
+    .selectFrom("committees")
+    .select("id")
+    .where("name", "=", parsed.name)
+    .where("id", "!=", committeeId)
+    .executeTakeFirst();
+  if (duplicate) throw new DomainError("CONFLICT", "已存在同名小组");
+
+  await db.transaction().execute(async (transaction) => {
+    const current = await transaction
+      .selectFrom("committees")
+      .select(["id", "name"])
+      .where("id", "=", committeeId)
+      .executeTakeFirst();
+    if (!current) throw new DomainError("NOT_FOUND", "小组不存在");
+    await transaction.updateTable("committees").set({
+      name: parsed.name,
+      updated_at: new Date(),
+    }).where("id", "=", committeeId).execute();
+    await writeAuditLog(transaction, {
+      actorUserId: actor.id,
+      action: "COMMITTEE_RENAMED",
+      entityType: "COMMITTEE",
+      entityId: committeeId,
+      details: { previousName: current.name, name: parsed.name },
+    });
+  });
+  return getCommitteeById(committeeId);
+}
+
+export async function deleteCommittee(
+  committeeId: string,
+  actor: SessionUser,
+): Promise<void> {
+  assertHr(actor);
+  const db = await ensureDatabaseReady();
+  await db.transaction().execute(async (transaction) => {
+    const committee = await transaction
+      .selectFrom("committees")
+      .select(["id", "name"])
+      .where("id", "=", committeeId)
+      .executeTakeFirst();
+    if (!committee) throw new DomainError("NOT_FOUND", "小组不存在");
+    const poll = await transaction
+      .selectFrom("polls")
+      .select("id")
+      .where("committee_id", "=", committeeId)
+      .executeTakeFirst();
+    if (poll) {
+      throw new DomainError("CONFLICT", "该小组已有投票记录，不能删除；可以重命名或更新成员");
+    }
+    await writeAuditLog(transaction, {
+      actorUserId: actor.id,
+      action: "COMMITTEE_DELETED",
+      entityType: "COMMITTEE",
+      entityId: committeeId,
+      details: { name: committee.name },
+    });
+    await transaction.deleteFrom("committees").where("id", "=", committeeId).execute();
+  });
+}
 
 export interface CommitteeMemberDto {
   id: string;

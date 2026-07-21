@@ -7,7 +7,7 @@ export interface SessionUser {
   dingtalkUserId: string;
   name: string;
   role: Role;
-  /** A user may retain the HR role while also serving on a committee. */
+  /** A user may retain the HR role while also being eligible to vote. */
   isCommitteeMember?: boolean;
 }
 
