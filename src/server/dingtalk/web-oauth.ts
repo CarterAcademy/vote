@@ -1,8 +1,11 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
+import { normalizeReturnTo } from "@/lib/auth/return-to";
 
 export const DINGTALK_WEB_OAUTH_STATE_COOKIE =
   "committee_vote_dingtalk_oauth_state";
 export const DINGTALK_WEB_OAUTH_STATE_MAX_AGE = 10 * 60;
+export const DINGTALK_WEB_RETURN_TO_COOKIE =
+  "committee_vote_dingtalk_return_to";
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name]?.trim();
@@ -40,8 +43,8 @@ export function createDingTalkWebOAuthState(): string {
   return randomBytes(32).toString("base64url");
 }
 
-export function buildDingTalkPostLoginUrl(path: "/admin" | "/vote"): URL {
-  return new URL(path, getDingTalkWebRedirectUri());
+export function buildDingTalkPostLoginUrl(path: string): URL {
+  return new URL(normalizeReturnTo(path) ?? "/", getDingTalkWebRedirectUri());
 }
 
 export function validateDingTalkWebOAuthState(
@@ -59,6 +62,7 @@ export function validateDingTalkWebOAuthState(
 
 export function buildDingTalkWebAuthorizationUrl(state: string): URL {
   const clientId = requiredEnvironment("DINGTALK_CLIENT_ID");
+  const corpId = process.env.DINGTALK_CORP_ID?.trim();
   const url = new URL("https://login.dingtalk.com/oauth2/auth");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", getDingTalkWebRedirectUri());
@@ -66,5 +70,6 @@ export function buildDingTalkWebAuthorizationUrl(state: string): URL {
   url.searchParams.set("response_type", "code");
   url.searchParams.set("prompt", "consent");
   url.searchParams.set("scope", "openid corpid");
+  if (corpId) url.searchParams.set("corpId", corpId);
   return url;
 }

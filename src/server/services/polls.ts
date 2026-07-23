@@ -11,6 +11,7 @@ import {
 } from "../db";
 import {
   createPollSchema,
+  idSchema,
   pollListQuerySchema,
   type CreatePollInput,
   type PollListQuery,
@@ -301,7 +302,14 @@ export async function createPoll(
           .execute()
       : [];
 
-    const mergedVoters = new Map(committeeMembers.map((member) => [member.dingtalk_user_id, member]));
+    const selectedCommitteeVoterIds = parsed.committeeVoterIds
+      ? new Set(parsed.committeeVoterIds)
+      : null;
+    const selectedCommitteeMembers = selectedCommitteeVoterIds
+      ? committeeMembers.filter((member) => selectedCommitteeVoterIds.has(member.dingtalk_user_id))
+      : committeeMembers;
+
+    const mergedVoters = new Map(selectedCommitteeMembers.map((member) => [member.dingtalk_user_id, member]));
     for (const directVoter of parsed.directVoters) {
       let user = await transaction
         .selectFrom("users")
@@ -404,6 +412,7 @@ export async function createPoll(
         committeeId: parsed.committeeId,
         committeeName: committee?.name ?? null,
         directVoterCount: parsed.directVoters.length,
+        committeeVoterCount: selectedCommitteeMembers.length,
         title: parsed.title,
         candidateName: parsed.candidateName,
         deadlineAt: parsed.deadlineAt.toISOString(),
@@ -506,8 +515,8 @@ export async function listPolls(
       ]),
     );
   }
-  if (query.from) base = base.where("polls.created_at", ">=", query.from);
-  if (query.to) base = base.where("polls.created_at", "<=", query.to);
+  if (query.from) base = base.where("polls.deadline_at", ">=", query.from);
+  if (query.to) base = base.where("polls.deadline_at", "<=", query.to);
 
   const countRow = await base
     .clearSelect()
@@ -565,6 +574,7 @@ export async function listPolls(
 }
 
 async function getBasePoll(pollId: string) {
+  if (!idSchema.safeParse(pollId).success) return undefined;
   const db = await ensureDatabaseReady();
   return db
     .selectFrom("polls")

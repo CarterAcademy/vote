@@ -298,6 +298,7 @@ export const api = {
     title: string;
     candidateName: string;
     committeeId?: string;
+    committeeVoterIds?: string[];
     directVoters?: Array<{
       dingtalkUserId: string;
       name: string;
@@ -310,6 +311,7 @@ export const api = {
     body.set("title", input.title);
     body.set("candidateName", input.candidateName);
     if (input.committeeId) body.set("committeeId", input.committeeId);
+    if (input.committeeVoterIds) body.set("committeeVoterIds", JSON.stringify(input.committeeVoterIds));
     body.set("directVoters", JSON.stringify(input.directVoters ?? []));
     body.set("deadlineAt", input.deadlineAt);
     for (const file of files) body.append("files", file);

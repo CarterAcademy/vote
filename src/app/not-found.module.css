@@ -1,0 +1,123 @@
+.page {
+  display: grid;
+  min-height: 100dvh;
+  padding: 32px 20px;
+  background: var(--app-canvas);
+  place-items: center;
+}
+
+.embedded {
+  display: grid;
+  min-height: min(620px, calc(100dvh - 160px));
+  place-items: center;
+}
+
+.card {
+  display: grid;
+  width: min(620px, 100%);
+  padding: clamp(28px, 6vw, 52px);
+  border: 1px solid var(--app-border);
+  border-radius: 18px;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  gap: 16px;
+  justify-items: start;
+}
+
+.mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--app-accent);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  place-items: center;
+}
+
+.eyebrow,
+.card h1,
+.card p {
+  margin: 0;
+}
+
+.eyebrow {
+  color: var(--app-accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.card h1 {
+  font-size: clamp(26px, 5vw, 38px);
+  line-height: 1.22;
+}
+
+.card p {
+  max-width: 45ch;
+  color: var(--app-text-muted);
+  line-height: 1.7;
+}
+
+.actions {
+  display: flex;
+  margin-top: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--app-radius);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+button.primary {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.primary {
+  background: var(--app-accent);
+  color: #fff;
+}
+
+.secondary {
+  border-color: var(--app-border-strong);
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 3px solid rgba(0, 105, 92, 0.25);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .embedded {
+    min-height: calc(100dvh - 180px);
+  }
+
+  .card {
+    padding: 26px 22px;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .primary,
+  .secondary {
+    flex: 1 1 100%;
+  }
+}

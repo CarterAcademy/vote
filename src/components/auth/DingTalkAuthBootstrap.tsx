@@ -7,13 +7,18 @@ import { api, errorMessage } from "@/lib/client/api";
 import { useSession } from "@/lib/client/session";
 import styles from "./DingTalkAuthBootstrap.module.css";
 
-export function DingTalkAuthBootstrap() {
+export function DingTalkAuthBootstrap({ returnTo }: { returnTo?: string | null }) {
   const router = useRouter();
   const { corpId, setAuthenticatedUser } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [authenticating, setAuthenticating] = useState(false);
   const [webLogin, setWebLogin] = useState(false);
   const attempted = useRef(false);
+  const startWebLogin = useCallback(() => {
+    const startUrl = new URL("/api/auth/dingtalk/web/start", window.location.origin);
+    if (returnTo) startUrl.searchParams.set("next", returnTo);
+    window.location.assign(`${startUrl.pathname}${startUrl.search}`);
+  }, [returnTo]);
   const authenticate = useCallback(async () => {
     if (!corpId) {
       setError("系统缺少钉钉企业配置，请联系管理员检查环境变量。");
@@ -26,20 +31,21 @@ export function DingTalkAuthBootstrap() {
       const dd = await import("dingtalk-jsapi");
       if (dd.env.platform === "notInDingTalk") {
         setWebLogin(true);
-        throw new Error("当前在浏览器中，请使用钉钉扫码或账号登录。");
+        startWebLogin();
+        return;
       }
       const result = await dd.runtime.permission.requestAuthCode({ corpId });
       const session = await api.dingtalkLogin(result.code);
       if (!session.user) throw new Error("钉钉身份未绑定系统用户，请联系 HR 管理员。");
       setAuthenticatedUser(session.user);
-      router.replace(session.user.role === "HR" ? "/admin" : "/vote");
+      router.replace(returnTo ?? (session.user.role === "HR" ? "/admin" : "/vote"));
       router.refresh();
     } catch (authError) {
       setError(errorMessage(authError));
     } finally {
       setAuthenticating(false);
     }
-  }, [corpId, router, setAuthenticatedUser]);
+  }, [corpId, returnTo, router, setAuthenticatedUser, startWebLogin]);
 
   useEffect(() => {
     if (attempted.current) return;
@@ -74,7 +80,7 @@ export function DingTalkAuthBootstrap() {
               appearance="primary"
               onClick={() => {
                 if (webLogin) {
-                  window.location.assign("/api/auth/dingtalk/web/start");
+                  startWebLogin();
                 } else {
                   void authenticate();
                 }

@@ -32,49 +32,19 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { choiceLabel, formatDateTime, isPast, percent } from "@/lib/client/format";
-import type { AdminPollDetail as Detail, AuditLog, ChoiceStat, VoteChoice } from "@/lib/client/types";
+import type { AdminPollDetail as Detail, ChoiceStat, VoteChoice } from "@/lib/client/types";
 import { AppShell } from "@/components/AppShell";
 import { ExperienceRatingPrompt } from "@/components/ExperienceRatingPrompt";
 import { ErrorState, PageLoading } from "@/components/PageState";
 import { ChoiceBadge, PollStatusBadge } from "@/components/StatusBadges";
+import { auditDetails, auditLabel } from "./auditPresentation";
 import styles from "./AdminPollDetail.module.css";
 
 type DetailTab = "overview" | "votes" | "audit";
 type Notice = { intent: "success" | "error" | "warning" | "info"; title?: string; message: string };
 
-const actionLabels: Record<string, string> = {
-  POLL_CREATED: "发起投票",
-  POLL_CLOSED: "关闭投票",
-  POLL_AUTO_CLOSED: "到期自动关闭",
-  VOTE_CAST: "提交投票",
-  VOTE_UPDATED: "修改投票",
-  REMINDER_SENT: "发送催投提醒",
-  REMINDERS_SENT: "发送催投提醒",
-  POLL_EXPORTED: "导出投票记录",
-  CREATE_POLL: "发起投票",
-  CLOSE_POLL: "关闭投票",
-  CAST_VOTE: "提交投票",
-  UPDATE_VOTE: "修改投票",
-  REMIND_VOTERS: "发送催投提醒",
-  EXPORT_POLL: "导出投票记录",
-};
-
 function findChoice(stats: ChoiceStat[], choice: VoteChoice): ChoiceStat {
   return stats.find((item) => item.choice === choice) ?? { choice, count: 0, percentage: 0 };
-}
-
-function auditLabel(log: AuditLog): string {
-  return actionLabels[log.action] ?? log.action.replaceAll("_", " ");
-}
-
-function auditDetails(details: AuditLog["details"]): string | null {
-  if (!details) return null;
-  if (typeof details === "string") return details;
-  const parts = Object.entries(details)
-    .filter(([, value]) => value !== undefined && value !== null && value !== "")
-    .slice(0, 5)
-    .map(([key, value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : String(value)}`);
-  return parts.length ? parts.join("，") : null;
 }
 
 export function AdminPollDetail({
@@ -414,7 +384,7 @@ export function AdminPollDetail({
                 {detail.auditLogs?.length ? (
                   <div className={styles.auditList}>
                     {detail.auditLogs.map((log) => {
-                      const description = auditDetails(log.details);
+                      const description = auditDetails(log);
                       return (
                         <article className={styles.auditItem} key={log.id}>
                           <div>

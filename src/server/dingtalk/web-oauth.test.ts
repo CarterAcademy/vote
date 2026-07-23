@@ -7,12 +7,15 @@ import {
 } from "./web-oauth";
 
 const originalClientId = process.env.DINGTALK_CLIENT_ID;
+const originalCorpId = process.env.DINGTALK_CORP_ID;
 const originalRedirectUri = process.env.DINGTALK_WEB_REDIRECT_URI;
 const originalInsecureRedirect = process.env.DINGTALK_WEB_ALLOW_INSECURE_REDIRECT;
 
 afterEach(() => {
   if (originalClientId === undefined) delete process.env.DINGTALK_CLIENT_ID;
   else process.env.DINGTALK_CLIENT_ID = originalClientId;
+  if (originalCorpId === undefined) delete process.env.DINGTALK_CORP_ID;
+  else process.env.DINGTALK_CORP_ID = originalCorpId;
   if (originalRedirectUri === undefined) delete process.env.DINGTALK_WEB_REDIRECT_URI;
   else process.env.DINGTALK_WEB_REDIRECT_URI = originalRedirectUri;
   if (originalInsecureRedirect === undefined) delete process.env.DINGTALK_WEB_ALLOW_INSECURE_REDIRECT;
@@ -22,6 +25,7 @@ afterEach(() => {
 describe("DingTalk web OAuth", () => {
   it("builds the documented browser authorization request", () => {
     process.env.DINGTALK_CLIENT_ID = "ding-client";
+    process.env.DINGTALK_CORP_ID = "ding-corp";
     process.env.DINGTALK_WEB_REDIRECT_URI =
       "http://127.0.0.1:3000/api/auth/dingtalk/web/callback";
 
@@ -38,6 +42,7 @@ describe("DingTalk web OAuth", () => {
       response_type: "code",
       prompt: "consent",
       scope: "openid corpid",
+      corpId: "ding-corp",
     });
   });
 
@@ -75,6 +80,12 @@ describe("DingTalk web OAuth", () => {
 
     expect(buildDingTalkPostLoginUrl("/admin").toString()).toBe(
       "http://10.100.80.126:3011/admin",
+    );
+    expect(
+      buildDingTalkPostLoginUrl("/admin/polls/123?tab=results").toString(),
+    ).toBe("http://10.100.80.126:3011/admin/polls/123?tab=results");
+    expect(buildDingTalkPostLoginUrl("//example.com/admin").toString()).toBe(
+      "http://10.100.80.126:3011/",
     );
   });
 

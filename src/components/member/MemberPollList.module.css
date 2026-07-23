@@ -68,6 +68,8 @@
 }
 
 .pollTitle {
+  min-width: 0;
+  flex: 1 1 auto;
   margin: 0;
   overflow: hidden;
   color: var(--app-text);
@@ -116,7 +118,9 @@
 .metaItem {
   display: inline-flex;
   align-items: center;
+  font-variant-numeric: tabular-nums;
   gap: 5px;
+  white-space: nowrap;
 }
 
 .action {

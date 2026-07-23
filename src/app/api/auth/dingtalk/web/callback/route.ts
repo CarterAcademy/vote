@@ -2,15 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { setSessionCookie } from "@/server/auth/session";
 import { ensureDatabaseReady } from "@/server/db";
+import { normalizeReturnTo } from "@/lib/auth/return-to";
 import {
   buildDingTalkPostLoginUrl,
   DINGTALK_WEB_OAUTH_STATE_COOKIE,
+  DINGTALK_WEB_RETURN_TO_COOKIE,
   validateDingTalkWebOAuthState,
 } from "@/server/dingtalk/web-oauth";
 import { authenticateDingTalkWebCode } from "@/server/services/users";
 
 function clearOAuthState(response: NextResponse): NextResponse {
   response.cookies.set(DINGTALK_WEB_OAUTH_STATE_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  response.cookies.set(DINGTALK_WEB_RETURN_TO_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
@@ -46,8 +54,11 @@ export async function GET(request: NextRequest) {
     await ensureDatabaseReady();
     const user = await authenticateDingTalkWebCode(authCode);
     await setSessionCookie(user);
+    const returnTo = normalizeReturnTo(
+      request.cookies.get(DINGTALK_WEB_RETURN_TO_COOKIE)?.value,
+    );
     const postLoginUrl = buildDingTalkPostLoginUrl(
-      user.role === "HR" ? "/admin" : "/vote",
+      returnTo ?? (user.role === "HR" ? "/admin" : "/vote"),
     );
     return clearOAuthState(
       NextResponse.redirect(postLoginUrl),

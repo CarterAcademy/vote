@@ -184,7 +184,7 @@
   justify-self: end;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 767px) {
   .floatingControls {
     right: 10px;
     bottom: 16px;

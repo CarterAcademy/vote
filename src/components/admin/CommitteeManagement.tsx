@@ -23,7 +23,7 @@ import {
   PeopleCommunityRegular,
   PersonAddRegular,
 } from "@fluentui/react-icons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
 import { api, errorMessage } from "@/lib/client/api";
@@ -104,6 +104,8 @@ export function CommitteeManagement({
   const [directorySearchCursor, setDirectorySearchCursor] = useState<number | undefined>();
   const [dialogError, setDialogError] = useState<string | null>(null);
   const directorySearchRequest = useRef(0);
+  const mobileMemberSectionRef = useRef<HTMLElement>(null);
+  const desktopMemberSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (mockMode) return;
@@ -276,12 +278,26 @@ export function CommitteeManagement({
     setGroupDialogMode("create");
   }
 
-  function openMemberPanel(committee: Committee) {
+  function toggleMemberPanel(committee: Committee) {
+    const isClosing = memberPanelOpen && committee.id === selectedId;
     setSelectedId(committee.id);
     setQuery("");
     setNotice(null);
-    setMemberPanelOpen(true);
+    setMemberPanelOpen(!isClosing);
   }
+
+  useEffect(() => {
+    if (!memberPanelOpen || !selectedCommittee) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const isMobile = typeof window.matchMedia === "function"
+        && window.matchMedia("(max-width: 700px)").matches;
+      const panel = isMobile ? mobileMemberSectionRef.current : desktopMemberSectionRef.current;
+      panel?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [memberPanelOpen, selectedCommittee]);
 
   function openRenameGroupDialog(committee: Committee) {
     setGroupName(committee.name);
@@ -476,6 +492,73 @@ export function CommitteeManagement({
     }
   }
 
+  function renderMemberSection(placement: "mobile" | "desktop") {
+    if (!selectedCommittee) return null;
+
+    const placementClass = placement === "mobile"
+      ? styles.mobileMemberSection
+      : styles.desktopMemberSection;
+    const sectionRef = placement === "mobile"
+      ? mobileMemberSectionRef
+      : desktopMemberSectionRef;
+
+    return (
+      <section
+        ref={sectionRef}
+        className={`${styles.memberSection} ${placementClass}`}
+        aria-label={`${selectedCommittee.name}成员管理`}
+      >
+        <div className={styles.sectionHeader}>
+          <div className={styles.memberSectionTitle}>
+            <h2>{selectedCommittee.name}</h2>
+            <p>管理该小组的 {members.length} 名在任委员</p>
+          </div>
+          <div className={styles.sectionActions}>
+            <SearchBox
+              className={styles.search}
+              value={query}
+              onChange={(_, data) => setQuery(data.value)}
+              placeholder="搜索姓名、部门或职务"
+              aria-label={`搜索${selectedCommittee.name}委员`}
+            />
+            <Button
+              appearance="primary"
+              className={styles.addMemberButton}
+              icon={<PersonAddRegular />}
+              onClick={openAddDialog}
+            >
+              添加成员
+            </Button>
+          </div>
+        </div>
+
+        {filteredMembers.length === 0 ? (
+          <EmptyState
+            title={query ? "没有匹配的委员" : "暂无委员"}
+            description={query ? "请尝试其他关键词。" : "请从钉钉通讯录添加委员会成员。"}
+            align="left"
+          />
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead><tr><th>委员</th><th>所属部门</th><th>委员职务</th><th><span className="sr-only">操作</span></th></tr></thead>
+              <tbody>
+                {filteredMembers.map((member) => (
+                  <tr key={member.id}>
+                    <td><div className={styles.person}><span className={styles.avatar}>{initials(member.name)}</span><div><strong>{member.name}</strong><small>{member.dingtalkUserId}</small></div></div></td>
+                    <td>{member.department || "—"}</td>
+                    <td><span className={styles.position}>{member.position || "委员"}</span></td>
+                    <td className={styles.actions}><Button appearance="subtle" icon={<DeleteRegular />} aria-label={`移除${member.name}`} onClick={() => setRemoveTarget(member)}>移除</Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    );
+  }
+
   return (
     <AppShell area="admin">
       <div className={styles.page}>
@@ -518,94 +601,53 @@ export function CommitteeManagement({
               {committees.map((committee) => {
                 const active = memberPanelOpen && committee.id === selectedId;
                 return (
-                  <article
-                    key={committee.id}
-                    className={`${styles.committeeCard} ${active ? styles.committeeCardActive : ""}`}
-                    aria-label={`${committee.name}，${committee.memberCount} 名在任委员`}
-                  >
-                    <span className={styles.committeeIcon}><PeopleCommunityRegular /></span>
-                    <span className={styles.committeeSummary}>
-                      <strong>{committee.name}</strong>
-                      <small>{committee.memberCount} 名在任委员</small>
-                    </span>
-                    <span className={styles.code}>小组</span>
-                    <span className={styles.committeeActions}>
-                      <Button
-                        appearance="subtle"
-                        size="small"
-                        icon={<PersonAddRegular />}
-                        onClick={() => openMemberPanel(committee)}
-                      >
-                        增删查成员
-                      </Button>
-                      <Button
-                        appearance="subtle"
-                        size="small"
-                        icon={<EditRegular />}
-                        onClick={() => openRenameGroupDialog(committee)}
-                      >
-                        重命名
-                      </Button>
-                      <Button
-                        appearance="subtle"
-                        size="small"
-                        icon={<DeleteRegular />}
-                        className={styles.dangerButton}
-                        onClick={() => setDeleteGroupTarget(committee)}
-                      >
-                        删除小组
-                      </Button>
-                    </span>
-                  </article>
+                  <Fragment key={committee.id}>
+                    <article
+                      className={`${styles.committeeCard} ${active ? styles.committeeCardActive : ""}`}
+                      aria-label={`${committee.name}，${committee.memberCount} 名在任委员`}
+                    >
+                      <span className={styles.committeeIcon}><PeopleCommunityRegular /></span>
+                      <span className={styles.committeeSummary}>
+                        <strong>{committee.name}</strong>
+                        <small>{committee.memberCount} 名在任委员</small>
+                      </span>
+                      <span className={styles.code}>小组</span>
+                      <span className={styles.committeeActions}>
+                        <Button
+                          appearance="subtle"
+                          size="small"
+                          icon={<PersonAddRegular />}
+                          aria-expanded={active}
+                          onClick={() => toggleMemberPanel(committee)}
+                        >
+                          {active ? "收起成员" : "管理成员"}
+                        </Button>
+                        <Button
+                          appearance="subtle"
+                          size="small"
+                          icon={<EditRegular />}
+                          onClick={() => openRenameGroupDialog(committee)}
+                        >
+                          重命名
+                        </Button>
+                        <Button
+                          appearance="subtle"
+                          size="small"
+                          icon={<DeleteRegular />}
+                          className={styles.dangerButton}
+                          onClick={() => setDeleteGroupTarget(committee)}
+                        >
+                          删除小组
+                        </Button>
+                      </span>
+                    </article>
+                    {active && renderMemberSection("mobile")}
+                  </Fragment>
                 );
               })}
             </section>
 
-            {memberPanelOpen && selectedCommittee && <section className={styles.memberSection} aria-label={`${selectedCommittee.name}成员管理`}>
-              <div className={styles.sectionHeader}>
-                <div className={styles.sectionActions}>
-                  <SearchBox
-                    className={styles.search}
-                    value={query}
-                    onChange={(_, data) => setQuery(data.value)}
-                    placeholder="搜索姓名、部门或职务"
-                    aria-label="搜索委员"
-                  />
-                  <Button
-                    appearance="primary"
-                    className={styles.addMemberButton}
-                    icon={<PersonAddRegular />}
-                    onClick={openAddDialog}
-                  >
-                    添加成员
-                  </Button>
-                </div>
-              </div>
-
-              {filteredMembers.length === 0 ? (
-                <EmptyState
-                  title={query ? "没有匹配的委员" : "暂无委员"}
-                  description={query ? "请尝试其他关键词。" : "请从钉钉通讯录添加委员会成员。"}
-                  align="left"
-                />
-              ) : (
-                <div className={styles.tableWrap}>
-                  <table className={styles.table}>
-                    <thead><tr><th>委员</th><th>所属部门</th><th>委员职务</th><th><span className="sr-only">操作</span></th></tr></thead>
-                    <tbody>
-                      {filteredMembers.map((member) => (
-                        <tr key={member.id}>
-                          <td><div className={styles.person}><span className={styles.avatar}>{initials(member.name)}</span><div><strong>{member.name}</strong><small>{member.dingtalkUserId}</small></div></div></td>
-                          <td>{member.department || "—"}</td>
-                          <td><span className={styles.position}>{member.position || "委员"}</span></td>
-                          <td className={styles.actions}><Button appearance="subtle" icon={<DeleteRegular />} aria-label={`移除${member.name}`} onClick={() => setRemoveTarget(member)}>移除</Button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>}
+            {memberPanelOpen && renderMemberSection("desktop")}
           </>
         )}
       </div>

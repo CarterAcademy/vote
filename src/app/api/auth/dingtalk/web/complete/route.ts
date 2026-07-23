@@ -5,6 +5,7 @@ import { setSessionCookie } from "@/server/auth/session";
 import { ensureDatabaseReady } from "@/server/db";
 import {
   DINGTALK_WEB_OAUTH_STATE_COOKIE,
+  DINGTALK_WEB_RETURN_TO_COOKIE,
   validateDingTalkWebOAuthState,
 } from "@/server/dingtalk/web-oauth";
 import { authenticateDingTalkWebCode } from "@/server/services/users";
@@ -32,6 +33,12 @@ export async function POST(request: NextRequest) {
     await setSessionCookie(user);
     const response = ok({ user, mockMode: false });
     response.cookies.set(DINGTALK_WEB_OAUTH_STATE_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+    response.cookies.set(DINGTALK_WEB_RETURN_TO_COOKIE, "", {
       httpOnly: true,
       sameSite: "lax",
       path: "/",

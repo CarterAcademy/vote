@@ -161,19 +161,36 @@
 }
 
 .memberSection {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
   scroll-margin-top: 80px;
+}
+
+.mobileMemberSection {
+  display: none;
+}
+
+.desktopMemberSection {
+  display: block;
 }
 
 .sectionHeader {
   display: flex;
   align-items: flex-end;
-  justify-content: flex-start;
-  margin-bottom: 14px;
+  justify-content: space-between;
+  margin-bottom: 16px;
   gap: 20px;
 }
 
 .sectionHeader h2 {
   font-size: 19px;
+}
+
+.memberSectionTitle {
+  min-width: 0;
 }
 
 .sectionHeader p {
@@ -254,6 +271,7 @@
 .person strong {
   color: var(--app-text);
   font-size: 14px;
+  white-space: nowrap;
 }
 
 .person small,
@@ -270,6 +288,10 @@
 
 .actions button {
   color: var(--app-danger);
+}
+
+.position {
+  white-space: nowrap;
 }
 
 .dialog {
@@ -446,19 +468,24 @@
   line-height: 1.55;
 }
 
-@media (hover: none) {
-  .committeeCard {
-    padding-bottom: 62px;
-  }
-
+@media (hover: none), (max-width: 700px) {
   .committeeActions {
-    right: 12px;
-    bottom: 10px;
-    left: 12px;
-    justify-content: flex-end;
+    position: static;
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: stretch;
+    flex-wrap: wrap;
+    gap: 4px;
+    grid-column: 1 / -1;
     opacity: 1;
     pointer-events: auto;
     transform: none;
+  }
+
+  .committeeActions > button {
+    min-width: 0;
+    min-height: 44px;
+    flex: 1 1 112px;
   }
 
   .committeeCard .code {
@@ -490,6 +517,16 @@
 
   .committeeGrid {
     grid-template-columns: 1fr;
+  }
+
+  .mobileMemberSection {
+    display: block;
+    margin-top: -8px;
+    border-top: 3px solid var(--app-accent);
+  }
+
+  .desktopMemberSection {
+    display: none;
   }
 
   .search {

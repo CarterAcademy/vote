@@ -71,6 +71,18 @@ describe("createPollSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("rejects an empty committee selection unless a direct voter is selected", () => {
+    const result = createPollSchema.safeParse({
+      committeeId: "10000000-0000-4000-8000-000000000001",
+      committeeVoterIds: [],
+      title: "专项评审",
+      candidateName: "张伟",
+      deadlineAt: "2099-07-18T18:00:00+08:00",
+    });
+
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("management validation", () => {

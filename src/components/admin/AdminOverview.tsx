@@ -2,6 +2,7 @@
 
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogBody,
@@ -13,6 +14,7 @@ import {
   Input,
   MessageBar,
   MessageBarBody,
+  MessageBarTitle,
   ProgressBar,
   SearchBox,
   Select,
@@ -22,14 +24,16 @@ import {
   ArrowRightRegular,
   CalendarRegular,
   ChevronLeftRegular,
+  ChevronDownRegular,
   ChevronRightRegular,
+  ChevronUpRegular,
   DismissRegular,
 } from "@fluentui/react-icons";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
 import { formatCompactDate, isPast, localDateTimeInput, percent } from "@/lib/client/format";
-import type { Committee, Initiator, PollDashboardStats, PollListResponse, PollSummary } from "@/lib/client/types";
+import type { Committee, CommitteeMember, Initiator, PollDashboardStats, PollListResponse, PollSummary } from "@/lib/client/types";
 import { useSession } from "@/lib/client/session";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorState, PageLoading } from "@/components/PageState";
@@ -95,12 +99,58 @@ export function AdminOverview({
   const [fileError, setFileError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [attempted, setAttempted] = useState(false);
+  const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[] | null>(null);
+  const [selectedCommitteeMemberIds, setSelectedCommitteeMemberIds] = useState<string[] | null>([]);
+  const [committeeMembersExpanded, setCommitteeMembersExpanded] = useState(true);
+  const [recipientCountLoading, setRecipientCountLoading] = useState(false);
+  const [recipientCountError, setRecipientCountError] = useState<string | null>(null);
+  const [recipientCountRetry, setRecipientCountRetry] = useState(0);
   const loadedOnce = useRef(true);
   const skipInitialPollLoad = useRef(true);
   const requestSequence = useRef(0);
+  const committeeMemberRequest = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const pageSize = 20;
   const dateRangeInvalid = Boolean(fromDate && toDate && fromDate > toDate);
+
+  const notificationRecipientCount = useMemo(() => {
+    if (form.committeeId && selectedCommitteeMemberIds === null) return null;
+    return new Set([
+      ...(selectedCommitteeMemberIds ?? []),
+      ...directVoters.map((person) => person.dingtalkUserId),
+    ]).size;
+  }, [directVoters, form.committeeId, selectedCommitteeMemberIds]);
+
+  useEffect(() => {
+    const committeeId = form.committeeId;
+    const requestId = ++committeeMemberRequest.current;
+    setRecipientCountError(null);
+
+    if (!committeeId) {
+      setCommitteeMembers(null);
+      setSelectedCommitteeMemberIds([]);
+      setRecipientCountLoading(false);
+      return;
+    }
+
+    setCommitteeMembers(null);
+    setSelectedCommitteeMemberIds(null);
+    setRecipientCountLoading(true);
+    void api.committeeMembers(committeeId)
+      .then((members) => {
+        if (requestId !== committeeMemberRequest.current) return;
+        setCommitteeMembers(members);
+        setSelectedCommitteeMemberIds(members.map((member) => member.dingtalkUserId));
+        setCommitteeMembersExpanded(true);
+      })
+      .catch((requestError) => {
+        if (requestId !== committeeMemberRequest.current) return;
+        setRecipientCountError(`无法核对通知人数：${errorMessage(requestError)}`);
+      })
+      .finally(() => {
+        if (requestId === committeeMemberRequest.current) setRecipientCountLoading(false);
+      });
+  }, [form.committeeId, recipientCountRetry]);
 
   const load = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -173,7 +223,7 @@ export function AdminOverview({
   const invalid = attempted && {
     candidateName: !form.candidateName.trim(),
     title: !form.title.trim(),
-    voters: !form.committeeId && directVoters.length === 0,
+    voters: notificationRecipientCount === 0,
     deadlineAt: !form.deadlineAt || new Date(form.deadlineAt).getTime() <= Date.now(),
   };
 
@@ -185,6 +235,9 @@ export function AdminOverview({
     setAttempted(false);
     setFormError(null);
     setDirectVoters([]);
+    setCommitteeMembers(null);
+    setSelectedCommitteeMemberIds([]);
+    setCommitteeMembersExpanded(true);
     setVoterPickerOpen(false);
     setFiles([]);
     setFileError(null);
@@ -213,7 +266,14 @@ export function AdminOverview({
 
   async function createPoll() {
     setAttempted(true);
-    if (!form.candidateName.trim() || !form.title.trim() || (!form.committeeId && directVoters.length === 0) || !form.deadlineAt || new Date(form.deadlineAt).getTime() <= Date.now()) return;
+    if (
+      !form.candidateName.trim()
+      || !form.title.trim()
+      || notificationRecipientCount === null
+      || notificationRecipientCount === 0
+      || !form.deadlineAt
+      || new Date(form.deadlineAt).getTime() <= Date.now()
+    ) return;
     setSubmitting(true);
     setFormError(null);
     try {
@@ -221,6 +281,7 @@ export function AdminOverview({
         candidateName: form.candidateName.trim(),
         title: form.title.trim(),
         committeeId: form.committeeId || undefined,
+        committeeVoterIds: form.committeeId ? selectedCommitteeMemberIds ?? undefined : undefined,
         directVoters,
         deadlineAt: new Date(form.deadlineAt).toISOString(),
       }, files);
@@ -290,17 +351,17 @@ export function AdminOverview({
                   placeholder="按标题或人选搜索"
                   aria-label="搜索投票记录"
                 />
-                <Field className={styles.filterField} label="起始日期">
+                <Field className={styles.filterField} label="截止日期起">
                   <Input
                     type="date"
                     value={fromDate}
                     onChange={(_, data) => { setFromDate(data.value); setPage(1); }}
-                    aria-label="记录起始日期"
+                    aria-label="截止日期起始"
                   />
                 </Field>
                 <Field
                   className={styles.filterField}
-                  label="结束日期"
+                  label="截止日期止"
                   validationState={dateRangeInvalid ? "error" : "none"}
                   validationMessage={dateRangeInvalid ? "不能早于起始日期" : undefined}
                 >
@@ -309,7 +370,7 @@ export function AdminOverview({
                     value={toDate}
                     min={fromDate || undefined}
                     onChange={(_, data) => { setToDate(data.value); setPage(1); }}
-                    aria-label="记录结束日期"
+                    aria-label="截止日期结束"
                   />
                 </Field>
                 {hasFilters && (
@@ -344,14 +405,14 @@ export function AdminOverview({
                     <table className={styles.table}>
                       <thead>
                         <tr>
-                          <th scope="col">投票</th>
-                          <th scope="col">附件</th>
-                          <th scope="col">委员会</th>
-                          {scope === "ALL" && <th scope="col">发起人</th>}
-                          <th scope="col">状态</th>
-                          <th scope="col">投票进度</th>
-                          <th scope="col">截止时间</th>
-                          <th scope="col"><span className="sr-only">操作</span></th>
+                          <th className={styles.pollColumn} scope="col">投票</th>
+                          <th className={styles.attachmentColumn} scope="col">附件</th>
+                          <th className={styles.committeeColumn} scope="col">委员会</th>
+                          {scope === "ALL" && <th className={styles.initiatorColumn} scope="col">发起人</th>}
+                          <th className={styles.statusColumn} scope="col">状态</th>
+                          <th className={styles.turnoutColumn} scope="col">投票进度</th>
+                          <th className={styles.deadlineColumn} scope="col">截止时间</th>
+                          <th className={styles.actionColumn} scope="col"><span className="sr-only">操作</span></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -361,24 +422,24 @@ export function AdminOverview({
                           const turnout = total ? submitted / total : 0;
                           return (
                             <tr key={poll.id}>
-                              <td>
+                              <td className={styles.pollColumn}>
                                 <a className={styles.pollLink} href={`/admin/polls/${poll.id}`}>
-                                  <strong>{poll.title}</strong>
-                                  <span>人选：{poll.candidateName}</span>
+                                  <strong title={poll.title}>{poll.title}</strong>
+                                  <span title={`人选：${poll.candidateName}`}>人选：{poll.candidateName}</span>
                                 </a>
                               </td>
-                              <td><PollAttachmentLinks pollId={poll.id} attachments={poll.attachments} /></td>
-                              <td>{poll.committeeName}</td>
-                              {scope === "ALL" && <td>{poll.createdByName}</td>}
-                              <td><PollStatusBadge status={poll.status} deadlineAt={poll.deadlineAt} /></td>
-                              <td>
+                              <td className={styles.attachmentColumn}><PollAttachmentLinks pollId={poll.id} attachments={poll.attachments} /></td>
+                              <td className={styles.committeeColumn} title={poll.committeeName}>{poll.committeeName}</td>
+                              {scope === "ALL" && <td className={styles.initiatorColumn} title={poll.createdByName}>{poll.createdByName}</td>}
+                              <td className={styles.statusColumn}><PollStatusBadge status={poll.status} deadlineAt={poll.deadlineAt} /></td>
+                              <td className={styles.turnoutColumn}>
                                 <div className={styles.turnout}>
                                   <span className={styles.turnoutText}>{submitted} / {total}</span>
                                   <ProgressBar value={turnout} thickness="medium" aria-label={`投票进度 ${submitted}/${total}`} />
                                 </div>
                               </td>
-                              <td className={styles.deadline}>{formatCompactDate(poll.deadlineAt)}</td>
-                              <td><Button as="a" href={`/admin/polls/${poll.id}`} appearance="subtle" icon={<ArrowRightRegular />} aria-label={`查看 ${poll.title}`} /></td>
+                              <td className={`${styles.deadlineColumn} ${styles.deadline}`}>{formatCompactDate(poll.deadlineAt)}</td>
+                              <td className={styles.actionColumn}><Button as="a" href={`/admin/polls/${poll.id}`} appearance="subtle" icon={<ArrowRightRegular />} aria-label={`查看 ${poll.title}`} /></td>
                             </tr>
                           );
                         })}
@@ -405,6 +466,7 @@ export function AdminOverview({
                             <span>{poll.committeeName}</span>
                             {scope === "ALL" && <span>发起人：{poll.createdByName}</span>}
                             <span>{submitted} / {total} 已投</span>
+                            <span>截止：{formatCompactDate(poll.deadlineAt)}</span>
                           </div>
                           <Button as="a" href={`/admin/polls/${poll.id}`} appearance="secondary">查看详情</Button>
                         </article>
@@ -452,7 +514,7 @@ export function AdminOverview({
                   <MessageBarBody>{formError}</MessageBarBody>
                 </MessageBar>
               )}
-              <form id="create-poll-form" className={styles.dialogForm} onSubmit={(event) => { event.preventDefault(); void createPoll(); }}>
+              <form id="create-poll-form" className={styles.dialogForm} noValidate onSubmit={(event) => { event.preventDefault(); void createPoll(); }}>
                 <Field
                   label="人选姓名"
                   required
@@ -464,6 +526,7 @@ export function AdminOverview({
                     onChange={(_, data) => setForm((current) => ({ ...current, candidateName: data.value }))}
                     placeholder="例如：赵明远"
                     autoComplete="off"
+                    aria-invalid={invalid && invalid.candidateName ? true : undefined}
                   />
                 </Field>
                 <Field
@@ -478,6 +541,7 @@ export function AdminOverview({
                     onChange={(_, data) => setForm((current) => ({ ...current, title: data.value }))}
                     placeholder="例如：2026 年度学术委员会人选评审"
                     maxLength={120}
+                    aria-invalid={invalid && invalid.title ? true : undefined}
                   />
                 </Field>
                 <Field
@@ -519,7 +583,7 @@ export function AdminOverview({
                 </Field>
                 <Field
                   label="评审委员会（可选）"
-                  hint="选择后会将该委员会当前的有效成员加入本场评审名单。"
+                  hint="选择后默认全员参评，可在下方快速排除本场不参评的成员。"
                   validationState={invalid && invalid.voters ? "error" : "none"}
                   validationMessage={invalid && invalid.voters ? "请至少选择一个委员会或一名评审人" : undefined}
                 >
@@ -527,6 +591,7 @@ export function AdminOverview({
                     value={form.committeeId}
                     onChange={(event) => setForm((current) => ({ ...current, committeeId: event.target.value }))}
                     aria-label="评审委员会"
+                    aria-invalid={invalid && invalid.voters ? true : undefined}
                   >
                     <option value="">不选择委员会</option>
                     {committees.map((committee) => (
@@ -534,6 +599,88 @@ export function AdminOverview({
                     ))}
                   </Select>
                 </Field>
+                {form.committeeId && (
+                  <section className={styles.committeeMembers} aria-label="本场委员会参评成员">
+                    <button
+                      type="button"
+                      className={styles.committeeMembersHeader}
+                      aria-expanded={committeeMembersExpanded}
+                      aria-controls="committee-member-options"
+                      onClick={() => setCommitteeMembersExpanded((current) => !current)}
+                    >
+                      <span>
+                        <strong>本场参评成员</strong>
+                        <small>
+                          {recipientCountLoading || selectedCommitteeMemberIds === null
+                            ? "正在读取成员"
+                            : `已选 ${selectedCommitteeMemberIds.length} / ${committeeMembers?.length ?? 0} 人`}
+                        </small>
+                      </span>
+                      {committeeMembersExpanded ? <ChevronUpRegular /> : <ChevronDownRegular />}
+                    </button>
+                    {committeeMembersExpanded && (
+                      <div id="committee-member-options" className={styles.committeeMembersBody}>
+                        {recipientCountLoading || committeeMembers === null ? (
+                          <div className={styles.committeeMembersLoading} role="status">正在加载委员会成员…</div>
+                        ) : committeeMembers.length > 0 ? (
+                          <>
+                            <div className={styles.committeeMemberTools}>
+                              <span>点击成员即可切换本场参评状态</span>
+                              <span>
+                                <Button
+                                  type="button"
+                                  appearance="subtle"
+                                  size="small"
+                                  disabled={selectedCommitteeMemberIds?.length === committeeMembers.length}
+                                  onClick={() => setSelectedCommitteeMemberIds(committeeMembers.map((member) => member.dingtalkUserId))}
+                                >
+                                  全选
+                                </Button>
+                                <Button
+                                  type="button"
+                                  appearance="subtle"
+                                  size="small"
+                                  disabled={selectedCommitteeMemberIds?.length === 0}
+                                  onClick={() => setSelectedCommitteeMemberIds([])}
+                                >
+                                  取消全选
+                                </Button>
+                              </span>
+                            </div>
+                            <div className={styles.committeeMemberGrid}>
+                              {committeeMembers.map((member) => {
+                                const checked = selectedCommitteeMemberIds?.includes(member.dingtalkUserId) ?? false;
+                                return (
+                                  <label
+                                    className={`${styles.committeeMemberOption} ${checked ? styles.committeeMemberOptionSelected : ""}`}
+                                    key={member.id}
+                                  >
+                                    <Checkbox
+                                      checked={checked}
+                                      aria-label={`${checked ? "取消选择" : "选择"}${member.name}`}
+                                      onChange={(_, data) => setSelectedCommitteeMemberIds((current) => {
+                                        const ids = current ?? [];
+                                        return data.checked
+                                          ? [...new Set([...ids, member.dingtalkUserId])]
+                                          : ids.filter((id) => id !== member.dingtalkUserId);
+                                      })}
+                                    />
+                                    <span>
+                                      <strong>{member.name}</strong>
+                                      <small>{member.position || member.department || "委员"}</small>
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </>
+                        ) : (
+                          <div className={styles.committeeMembersLoading}>该委员会暂无有效成员</div>
+                        )}
+                      </div>
+                    )}
+                  </section>
+                )}
                 <Field
                   label="直接选择评审人（可选）"
                   hint="可与委员会组合使用。若人员重复，最终名单只保留一人。"
@@ -593,16 +740,53 @@ export function AdminOverview({
                     min={localDateTimeInput(new Date())}
                     onChange={(_, data) => setForm((current) => ({ ...current, deadlineAt: data.value }))}
                     contentBefore={<CalendarRegular />}
+                    aria-invalid={invalid && invalid.deadlineAt ? true : undefined}
                   />
                 </Field>
+                {recipientCountError ? (
+                  <MessageBar intent="error" className={styles.notificationNotice}>
+                    <MessageBarBody>
+                      <MessageBarTitle>无法确认通知名单</MessageBarTitle>
+                      {recipientCountError}
+                      <Button
+                        type="button"
+                        appearance="subtle"
+                        size="small"
+                        onClick={() => setRecipientCountRetry((current) => current + 1)}
+                      >
+                        重新核对
+                      </Button>
+                    </MessageBarBody>
+                  </MessageBar>
+                ) : (
+                  <MessageBar intent="warning" className={styles.notificationNotice}>
+                    <MessageBarBody>
+                      <MessageBarTitle>发起后会立即发送钉钉通知</MessageBarTitle>
+                      {recipientCountLoading || notificationRecipientCount === null
+                        ? "正在核对去重后的评审人名单。"
+                        : notificationRecipientCount > 0
+                          ? `确认发起后，系统将立即通知去重后的 ${notificationRecipientCount} 名评审人；已发送的消息无法撤回。`
+                          : "请选择评审委员会或直接添加评审人。确认发起后，系统会立即向评审人发送消息。"}
+                    </MessageBarBody>
+                  </MessageBar>
+                )}
               </form>
             </DialogContent>
             <DialogActions className={styles.dialogActions}>
               <DialogTrigger disableButtonEnhancement>
                 <Button appearance="secondary" disabled={submitting}>取消</Button>
               </DialogTrigger>
-              <Button type="submit" form="create-poll-form" appearance="primary" disabled={submitting}>
-                {submitting ? "正在发起" : "确认发起"}
+              <Button
+                type="submit"
+                form="create-poll-form"
+                appearance="primary"
+                disabled={submitting || recipientCountLoading || notificationRecipientCount === null || Boolean(recipientCountError)}
+              >
+                {submitting
+                  ? "正在发起并发送通知"
+                  : notificationRecipientCount && notificationRecipientCount > 0
+                    ? `发起并通知 ${notificationRecipientCount} 人`
+                    : "确认发起并发送通知"}
               </Button>
             </DialogActions>
           </DialogBody>

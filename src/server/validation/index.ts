@@ -20,6 +20,9 @@ export const createPollSchema = z
       (value) => value === "" || value === null ? undefined : value,
       z.uuid("请选择有效的委员会").optional(),
     ),
+    committeeVoterIds: z.array(nonBlank("委员会成员 ID", 128))
+      .max(500, "每场投票最多选择 500 名委员会成员")
+      .optional(),
     directVoters: z.array(directVoterSchema).max(200, "每场投票最多直接选择 200 人").default([]),
     title: nonBlank("投票标题", 300),
     candidateName: nonBlank("人选姓名", 100),
@@ -27,11 +30,22 @@ export const createPollSchema = z
     deadlineAt: z.coerce.date({ error: "请选择有效的截止时间" }),
   })
   .superRefine((value, context) => {
-    if (!value.committeeId && value.directVoters.length === 0) {
+    const hasCommitteeVoters = Boolean(
+      value.committeeId
+      && (value.committeeVoterIds === undefined || value.committeeVoterIds.length > 0),
+    );
+    if (!hasCommitteeVoters && value.directVoters.length === 0) {
       context.addIssue({
         code: "custom",
         path: ["directVoters"],
         message: "请至少选择一个委员会或一名评审人",
+      });
+    }
+    if (!value.committeeId && value.committeeVoterIds !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["committeeVoterIds"],
+        message: "选择委员会成员前请先选择委员会",
       });
     }
     const startsAt = value.startsAt ?? new Date();
@@ -45,6 +59,9 @@ export const createPollSchema = z
   })
   .transform((value) => ({
     ...value,
+    committeeVoterIds: value.committeeVoterIds
+      ? [...new Set(value.committeeVoterIds)]
+      : undefined,
     directVoters: Array.from(
       value.directVoters.reduce((unique, voter) => {
         if (!unique.has(voter.dingtalkUserId)) unique.set(voter.dingtalkUserId, voter);

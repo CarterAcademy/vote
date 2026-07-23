@@ -38,7 +38,9 @@ export function IntroComments() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [mobileCollapsed, setMobileCollapsed] = useState(false);
+  // The compact edge tab is the safe default on narrow screens. The class has
+  // no visual effect on desktop, where the full comment button remains visible.
+  const [mobileCollapsed, setMobileCollapsed] = useState(true);
   const listRef = useRef<HTMLDivElement | null>(null);
   const commentsLoadedRef = useRef(false);
 

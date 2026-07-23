@@ -106,13 +106,17 @@
 .tableWrap {
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: var(--app-surface);
+  scrollbar-gutter: stable;
 }
 
 .table {
   width: 100%;
+  min-width: 1040px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .table th {
@@ -121,7 +125,9 @@
   color: var(--app-text-muted);
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.4;
   text-align: left;
+  white-space: nowrap;
 }
 
 .table td {
@@ -129,11 +135,68 @@
   border-top: 1px solid var(--app-border);
   color: #30413b;
   font-size: 13px;
+  line-height: 1.5;
   vertical-align: middle;
+}
+
+.table tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--app-accent) 3.5%, var(--app-surface));
+}
+
+.pollColumn {
+  width: auto;
+}
+
+.attachmentColumn {
+  width: 88px;
+}
+
+.committeeColumn {
+  width: 160px;
+}
+
+.initiatorColumn {
+  width: 96px;
+}
+
+.statusColumn {
+  width: 104px;
+}
+
+.turnoutColumn {
+  width: 154px;
+}
+
+.deadlineColumn {
+  width: 116px;
+}
+
+.actionColumn {
+  width: 52px;
+  padding-right: 10px !important;
+  padding-left: 6px !important;
+  text-align: right !important;
+}
+
+.committeeColumn,
+.initiatorColumn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentColumn :global(.fui-Link),
+.attachmentColumn > * {
+  max-width: 100%;
 }
 
 .pollLink {
   display: grid;
+  min-width: 0;
   color: var(--app-text);
   gap: 4px;
   text-decoration: none;
@@ -146,7 +209,8 @@
 }
 
 .pollLink strong {
-  max-width: 360px;
+  display: block;
+  max-width: 100%;
   overflow: hidden;
   font-size: 14px;
   text-overflow: ellipsis;
@@ -154,8 +218,13 @@
 }
 
 .pollLink span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--app-text-muted);
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .turnout {
@@ -167,9 +236,11 @@
 .turnoutText {
   font-variant-numeric: tabular-nums;
   font-weight: 620;
+  white-space: nowrap;
 }
 
 .deadline {
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -266,6 +337,130 @@
   display: grid;
   align-items: start;
   gap: 10px;
+}
+
+.committeeMembers {
+  overflow: hidden;
+  margin-top: -10px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface-muted);
+}
+
+.committeeMembersHeader {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background-color 160ms ease;
+}
+
+.committeeMembersHeader:hover {
+  background: color-mix(in srgb, var(--app-accent) 7%, transparent);
+}
+
+.committeeMembersHeader:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
+}
+
+.committeeMembersHeader > span:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.committeeMembersHeader strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.committeeMembersHeader small,
+.committeeMemberTools,
+.committeeMemberOption small,
+.committeeMembersLoading {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.committeeMembersBody {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.committeeMemberTools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.committeeMemberTools > span:last-child {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.committeeMemberGrid {
+  display: grid;
+  max-height: 230px;
+  overflow-y: auto;
+  gap: 7px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  scrollbar-gutter: stable;
+}
+
+.committeeMemberOption {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  padding: 7px 9px 7px 5px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-surface);
+  cursor: pointer;
+  gap: 5px;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.committeeMemberOption:hover {
+  border-color: var(--app-border-strong);
+}
+
+.committeeMemberOptionSelected {
+  border-color: color-mix(in srgb, var(--app-accent) 48%, var(--app-border));
+  background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface));
+}
+
+.committeeMemberOption > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.committeeMemberOption strong,
+.committeeMemberOption small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.committeeMemberOption strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.committeeMembersLoading {
+  padding: 8px 2px;
 }
 
 .voterControl > :global(.fui-Button) {
@@ -382,6 +577,10 @@
   min-width: 104px;
 }
 
+.notificationNotice button {
+  margin-left: 8px;
+}
+
 .pagination {
   display: flex;
   align-items: center;
@@ -397,7 +596,7 @@
   gap: 8px;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 1080px) {
   .metrics {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -439,14 +638,40 @@
   .mobileTop,
   .mobileMeta {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 10px;
   }
 
+  .mobileTop .pollLink {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .mobileTop .pollLink strong {
+    max-width: none;
+    overflow: visible;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    text-wrap: pretty;
+    white-space: normal;
+  }
+
+  .mobileTop > :last-child {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
   .mobileMeta {
+    flex-wrap: wrap;
+    justify-content: flex-start;
     color: var(--app-text-muted);
     font-size: 12px;
+  }
+
+  .mobileMeta span {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -506,6 +731,15 @@
 
   .selectedVoters {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .committeeMemberGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .committeeMemberTools {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .dialogActions {

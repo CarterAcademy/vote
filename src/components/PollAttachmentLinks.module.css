@@ -8,7 +8,7 @@
 
 .link {
   display: inline-flex;
-  max-width: 220px;
+  max-width: min(220px, 100%);
   min-width: 0;
   align-items: center;
   padding: 1px 0;

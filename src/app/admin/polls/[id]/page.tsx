@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AdminPollDetail } from "@/components/admin/AdminPollDetail";
 import { getSessionUser } from "@/server/auth/session";
-import { getPollDetail } from "@/server/services";
+import { buildLoginPath } from "@/lib/auth/return-to";
+import { getPollDetail, isDomainError } from "@/server/services";
+import { idSchema } from "@/server/validation";
 
 export const metadata: Metadata = { title: "投票详情" };
 
@@ -11,11 +13,19 @@ export default async function AdminPollDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await getSessionUser();
-  if (!user) redirect("/");
-  if (user.role !== "HR") redirect("/vote");
   const { id } = await params;
-  const detail = await getPollDetail(id, user);
-  if (!("voters" in detail)) redirect("/vote");
-  return <AdminPollDetail pollId={id} initialDetail={detail} />;
+  const user = await getSessionUser();
+  if (!user) redirect(buildLoginPath(`/admin/polls/${encodeURIComponent(id)}`));
+  if (user.role !== "HR") redirect("/vote");
+  const parsedId = idSchema.safeParse(id);
+  if (!parsedId.success) notFound();
+
+  try {
+    const detail = await getPollDetail(parsedId.data, user);
+    if (!("voters" in detail)) redirect("/vote");
+    return <AdminPollDetail pollId={parsedId.data} initialDetail={detail} />;
+  } catch (error) {
+    if (isDomainError(error) && error.code === "NOT_FOUND") notFound();
+    throw error;
+  }
 }

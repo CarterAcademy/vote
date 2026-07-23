@@ -1,0 +1,44 @@
+.status {
+  display: inline-flex;
+  min-width: max-content;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.status::before {
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+  opacity: 0.78;
+}
+
+.closed {
+  border-color: #d6dcda;
+  background: #f2f4f3;
+  color: #4d5a55;
+}
+
+.expired {
+  border-color: #ead8b7;
+  background: #fff9ed;
+  color: #855318;
+}
+
+.open {
+  border-color: #beddd3;
+  background: #edf8f4;
+  color: #176b52;
+}
